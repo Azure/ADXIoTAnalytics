@@ -35,7 +35,7 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
 
 3. Get the latest version of the repository
     ```bash
-    git clone https://github.com/bwatts64/ADXIoTAnalytics.git
+    git clone https://github.com/Azure/ADXIoTAnalytics.git
     ```
     Optionally, You can update the patientmonitoring.parameters.json file to personalize your deployment.
 
