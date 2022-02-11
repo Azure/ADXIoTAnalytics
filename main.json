@@ -1,0 +1,537 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.1124.51302",
+      "templateHash": "14746616412938987384"
+    }
+  },
+  "parameters": {
+    "deploymentLocation": {
+      "type": "string",
+      "defaultValue": "eastus"
+    },
+    "adxName": {
+      "type": "string",
+      "defaultValue": "adxclusteriot"
+    },
+    "adxSKU": {
+      "type": "string",
+      "defaultValue": "Standard_D11_v2"
+    },
+    "eventHubName": {
+      "type": "string",
+      "defaultValue": "eventhubiot"
+    },
+    "iotCentralName": {
+      "type": "string",
+      "defaultValue": "iotcentraliot"
+    },
+    "digitalTwinlName": {
+      "type": "string",
+      "defaultValue": "digitaltwiniot"
+    },
+    "saName": {
+      "type": "string",
+      "defaultValue": "iotmonitoringsa"
+    },
+    "deploymentSuffix": {
+      "type": "string"
+    },
+    "numDevices": {
+      "type": "int"
+    },
+    "principalId": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.EventHub/namespaces/{0}', format('{0}{1}', parameters('eventHubName'), parameters('deploymentSuffix')))]",
+      "name": "[guid(resourceGroup().id, parameters('principalId'), subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde')]",
+        "principalId": "[reference(resourceId('Microsoft.Resources/deployments', parameters('adxName')), '2020-10-01').outputs.adxClusterIdentity.value]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', parameters('adxName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[format('{0}{1}', parameters('saName'), parameters('deploymentSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "saname": {
+            "value": "[format('{0}{1}', parameters('saName'), parameters('deploymentSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('deploymentLocation')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1124.51302",
+              "templateHash": "11522686780858277909"
+            }
+          },
+          "parameters": {
+            "saname": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2021-06-01",
+              "name": "[parameters('saname')]",
+              "kind": "StorageV2",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {}
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2021-06-01",
+              "name": "[format('{0}/default/adxscript', parameters('saname'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('saname'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "saName": {
+              "type": "string",
+              "value": "[parameters('saname')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[parameters('iotCentralName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "iotCentralName": {
+            "value": "[format('{0}{1}', parameters('iotCentralName'), parameters('deploymentSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('deploymentLocation')]"
+          },
+          "principalId": {
+            "value": "[parameters('principalId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1124.51302",
+              "templateHash": "16092833873661871501"
+            }
+          },
+          "parameters": {
+            "iotCentralName": {
+              "type": "string",
+              "defaultValue": "iotcentralpatmon"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "principalId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.IoTCentral/iotApps",
+              "apiVersion": "2021-06-01",
+              "name": "[parameters('iotCentralName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "ST1"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "displayName": "Store Analytics",
+                "subdomain": "[format('{0}domain', parameters('iotCentralName'))]",
+                "template": "iotc-store"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-04-01-preview",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'bcd981a7-7f74-457b-83e1-cceb9e632ffe'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'bcd981a7-7f74-457b-83e1-cceb9e632ffe')]",
+                "principalId": "[parameters('principalId')]"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[parameters('adxName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "adxName": {
+            "value": "[format('{0}{1}', parameters('adxName'), parameters('deploymentSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('deploymentLocation')]"
+          },
+          "adxSKU": {
+            "value": "[parameters('adxSKU')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1124.51302",
+              "templateHash": "16923733025761940904"
+            }
+          },
+          "parameters": {
+            "adxName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "adxSKU": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Kusto/clusters",
+              "apiVersion": "2021-08-27",
+              "name": "[parameters('adxName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('adxSKU')]",
+                "tier": "Standard",
+                "capacity": 2
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              }
+            },
+            {
+              "type": "Microsoft.Kusto/clusters/databases",
+              "apiVersion": "2021-08-27",
+              "name": "[format('{0}/{1}', parameters('adxName'), 'IoTAnalytics')]",
+              "kind": "ReadWrite",
+              "location": "[parameters('location')]",
+              "properties": {
+                "softDeletePeriod": "P3D",
+                "hotCachePeriod": "P365D"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Kusto/clusters', parameters('adxName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "adxClusterId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Kusto/clusters', parameters('adxName'))]"
+            },
+            "adxClusterIdentity": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Kusto/clusters', parameters('adxName')), '2021-08-27', 'full').identity.principalId]"
+            },
+            "adxName": {
+              "type": "string",
+              "value": "[parameters('adxName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[parameters('eventHubName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "eventHubName": {
+            "value": "[format('{0}{1}', parameters('eventHubName'), parameters('deploymentSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('deploymentLocation')]"
+          },
+          "eventHubSKU": {
+            "value": "Standard"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1124.51302",
+              "templateHash": "3425932352121452092"
+            }
+          },
+          "parameters": {
+            "eventHubName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "eventHubSKU": {
+              "type": "string",
+              "defaultValue": "Standard"
+            }
+          },
+          "variables": {
+            "eventHubAuthRuleName": "ListenSend"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.EventHub/namespaces",
+              "apiVersion": "2021-11-01",
+              "name": "[parameters('eventHubName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('eventHubSKU')]",
+                "tier": "Standard",
+                "capacity": 1
+              }
+            },
+            {
+              "type": "Microsoft.EventHub/namespaces/eventhubs",
+              "apiVersion": "2021-11-01",
+              "name": "[format('{0}/{1}', parameters('eventHubName'), 'IoTData')]",
+              "properties": {
+                "messageRetentionInDays": 7,
+                "partitionCount": 1
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
+              "apiVersion": "2021-01-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('eventHubName'), 'IoTData', variables('eventHubAuthRuleName'))]",
+              "properties": {
+                "rights": [
+                  "Listen",
+                  "Send"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubName'))]",
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventHubName'), 'IoTData')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "eventHubConnectionString": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.EventHub/namespaces/eventhubs/authorizationRules', parameters('eventHubName'), 'IoTData', variables('eventHubAuthRuleName')), '2021-01-01-preview').primaryConnectionString]"
+            },
+            "eventHubAuthRuleName": {
+              "type": "string",
+              "value": "[variables('eventHubAuthRuleName')]"
+            },
+            "eventHubName": {
+              "type": "string",
+              "value": "[parameters('eventHubName')]"
+            },
+            "eventhubClusterId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubName'))]"
+            },
+            "eventhubNamespace": {
+              "type": "string",
+              "value": "[parameters('eventHubName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[parameters('digitalTwinlName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "digitalTwinName": {
+            "value": "[format('{0}{1}', parameters('digitalTwinlName'), parameters('deploymentSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('deploymentLocation')]"
+          },
+          "principalId": {
+            "value": "[parameters('principalId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1124.51302",
+              "templateHash": "1170099228799758001"
+            }
+          },
+          "parameters": {
+            "digitalTwinName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "principalId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DigitalTwins/digitalTwinsInstances",
+              "apiVersion": "2020-12-01",
+              "name": "[parameters('digitalTwinName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-04-01-preview",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'bcd981a7-7f74-457b-83e1-cceb9e632ffe'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'bcd981a7-7f74-457b-83e1-cceb9e632ffe')]",
+                "principalId": "[parameters('principalId')]"
+              }
+            }
+          ],
+          "outputs": {
+            "digitalTwinName": {
+              "type": "string",
+              "value": "[parameters('digitalTwinName')]"
+            },
+            "digitalTwinHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DigitalTwins/digitalTwinsInstances', parameters('digitalTwinName'))).hostName]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "iotCentralName": {
+      "type": "string",
+      "value": "[format('{0}{1}', parameters('iotCentralName'), parameters('deploymentSuffix'))]"
+    },
+    "DeviceNumber": {
+      "type": "int",
+      "value": "[parameters('numDevices')]"
+    },
+    "eventHubConnectionString": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('eventHubName')), '2020-10-01').outputs.eventHubConnectionString.value]"
+    },
+    "eventHubAuthRuleName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('eventHubName')), '2020-10-01').outputs.eventHubAuthRuleName.value]"
+    },
+    "eventHubName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('eventHubName')), '2020-10-01').outputs.eventHubName.value]"
+    },
+    "eventhubClusterId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('eventHubName')), '2020-10-01').outputs.eventhubClusterId.value]"
+    },
+    "eventhubNamespace": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('eventHubName')), '2020-10-01').outputs.eventhubNamespace.value]"
+    },
+    "digitalTwinName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('digitalTwinlName')), '2020-10-01').outputs.digitalTwinName.value]"
+    },
+    "digitalTwinHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('digitalTwinlName')), '2020-10-01').outputs.digitalTwinHostName.value]"
+    },
+    "saName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}{1}', parameters('saName'), parameters('deploymentSuffix'))), '2020-10-01').outputs.saName.value]"
+    },
+    "adxName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('adxName')), '2020-10-01').outputs.adxName.value]"
+    },
+    "adxClusterId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('adxName')), '2020-10-01').outputs.adxClusterId.value]"
+    },
+    "location": {
+      "type": "string",
+      "value": "[parameters('deploymentLocation')]"
+    }
+  }
+}

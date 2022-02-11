@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "deploymentLocation": {
+        "value": "eastus"
+      },
+      "adxName": {
+        "value": "adxpm"
+      },
+      "adxSKU": {
+        "value": "Standard_D11_v2"
+      },
+      "eventHubName": {
+        "value": "eventhubpm"
+      },
+      "iotCentralName": {
+        "value": "iotcentralpm"
+      },
+      "digitalTwinlName": {
+        "value": "digitaltwinpm"
+      },
+      "numDevices": {
+        "value": 36
+      }
+    }
+}
