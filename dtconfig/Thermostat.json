@@ -1,0 +1,13 @@
+{
+  "@id": "dtmi:StageIoTRawData:Thermostat;1",
+  "@type": "Interface",
+  "displayName": "Thermostat",
+  "contents": [
+    {
+      "@type": "Property",
+      "name": "DeviceId",
+      "schema": "string"
+    }
+  ],
+  "@context": "dtmi:dtdl:context;2"
+}

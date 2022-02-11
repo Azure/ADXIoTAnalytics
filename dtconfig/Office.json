@@ -1,0 +1,26 @@
+{
+  "@id": "dtmi:StageIoTRawData:Office;1",
+  "@type": "Interface",
+  "displayName": "Office",
+  "contents": [
+    {
+      "@type": "Relationship",
+      "name": "officecontainsfloors",
+      "displayName": "Office_contains_Floors",
+      "properties": [
+		{
+		  "@type": "Property",
+		  "name": "Name",
+		  "schema": "string"
+		},
+		{
+		  "@type": "Property",
+		  "name": "Address",
+		  "schema": "string"
+		}
+	  ]
+    }
+    
+  ],
+  "@context": "dtmi:dtdl:context;2"
+}

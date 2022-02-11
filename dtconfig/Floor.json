@@ -1,0 +1,20 @@
+{
+  "@id": "dtmi:StageIoTRawData:Floor;1",
+  "@type": "Interface",
+  "displayName": "Floor",
+  "contents": [
+	{
+      "@type": "Relationship",
+      "name": "floorcontainsdevices",
+      "displayName": "Floor Contains Devices",
+      "properties": [
+		{
+		  "@type": "Property",
+		  "name": "Name",
+		  "schema": "string"
+		}
+	  ]
+    }
+  ],
+  "@context": "dtmi:dtdl:context;2"
+}
