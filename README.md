@@ -1,5 +1,5 @@
-# ADX IoT Analytics Demo
-Azure Data Explorer can provide valuable insights into your Iot workloads. In the following Demo we look at thermostat IoT Devices that are in 3 different office buildings.
+# ADX for IoT Analytics (Hands-On Lab)
+Azure Data Explorer can provide valuable insights into your IoT workloads. In the following lab, we look at thermostat IoT Devices that are in 3 different office buildings.
 
 The following will deploy the following:
 - IoT Central Store Analytics Template 
