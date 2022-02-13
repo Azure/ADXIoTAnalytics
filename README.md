@@ -45,7 +45,7 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
     . ./deploy.sh
     ```
 
-5. Run lab KQL scripts in [Sample.kql](kqlsample/Sample.kql) to get you started exploring in ADX.
+5. Run KQL queries in [Sample.kql](kqlsample/Sample.kql) to get you started exploring in ADX.
 
 ### Example:
 ![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
