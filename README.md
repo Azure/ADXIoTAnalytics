@@ -61,10 +61,9 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
 - **config folder**: contains the configDB.kql that includes the code required to create the Azure Data Explorer tables and functions
 
 - **dtconfig folder**: contains the files necessary to configure the Azure Digital Twins service:
-  - Departments.json
-  - Facility.json
-  - KneeBrace.json
-  - VirtualPatch.json
+  - Floor.json
+  - Office.json
+  - Thermostat.json
 
 - **modules folder**: contains the [Azure Bicep](https://docs.microsoft.com/EN-US/azure/azure-resource-manager/bicep/) necessary to deploy and configure the resource resources used in the solution:
   - adx.bicep: ADX Bicep deployment file
@@ -77,6 +76,11 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
 - main.bicep: main Bicep deployment file. It includes all the other Bicep deployment files (modules)
 - patientmonitoring.parameters.json: parameters file used to customize the deployment
 - README.md: This README file
+
+## Authors
+- Brad Watts (ADX - Senior Program Manager) 
+- Tonio Lora (Director Specialist GBB)
+- Hiram Fleitas (Data & AI - Senior Customer Engineer)
 
 ## Contributing
 
