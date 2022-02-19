@@ -50,6 +50,9 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
 ### Example:
 ![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
 
+## Lab Architecture
+![labarchitecture](assets/labarchitecture.png "labarchitecture")
+
 ## Files used in the solution
 
 - **asssets folder**: contains the following files:
