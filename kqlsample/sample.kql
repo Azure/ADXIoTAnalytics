@@ -128,7 +128,7 @@ Thermostats
 //The provisioning process created a function that will query out to ADT so lets look at that
 
 //This function allows us to get the thermostats at certain offices (Atlanta, Dallas, or Seattle). 
-// The metadata includes the floor the thermistat is on
+// The metadata includes the floor the thermostat is on
 .show function GetDevicesbyStore
 
 //Here is an example of the query. Note that the below ADT endpoint won't match yours
