@@ -49,7 +49,7 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
 
 7. Expand Database > IoTAnalytics 
 
-9. Run KQL queries in [Sample.kql](kqlsample/Sample.kql) to get you started exploring in ADX.
+9. Run KQL queries in [sample.kql](kqlsample/sample.kql) to get you started exploring in ADX.
 
 ### Example:
 ![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
