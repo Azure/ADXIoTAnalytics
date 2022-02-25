@@ -56,14 +56,16 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
     ![uri](assets/uri.png "uri")
     
     ![add](assets/add.png "add")
-     
-7. Expand Database > IoTAnalytics 
-
-    ![png](assets/png.png "png")
     
-9. Run KQL queries in [sample.kql](kqlsample/sample.kql) to get you started exploring in ADX.
+    ![added](assets/added.png "added")
+     
+7. Expand Database > select **IoTAnalytics** to set the Scope of the new script
 
-    ![png](assets/png.png "png")
+    ![expand](assets/expand.png "expand")
+    
+9. Copy the KQL queries from **[sample.kql](kqlsample/sample.kql)** to get you started.
+
+    ![sample](assets/sample.png "sample")
 
 ## 🏢 Lab Architecture
 ![labarchitecture](assets/labarchitecture.png "labarchitecture")
