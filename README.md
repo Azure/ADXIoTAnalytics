@@ -1,7 +1,11 @@
-# ADX for IoT Analytics (Hands-On Lab)
+## 🧪 ADX for IoT Analytics (Hands-On Lab)
 Azure Data Explorer can provide valuable insights into your IoT workloads. In the following lab, we look at thermostat IoT Devices that are in 3 different office buildings.
 
-The following will deploy the following:
+## Prerequisites
+- An [Azure account](https://azure.microsoft.com/free) with an active subscription. If you don't have access to an Azure subscription, you may be able to start with a [free account](https://azure.com/free).
+- You must have the necessary privileges within your Azure subscription to create resources, perform role assignments, register resource providers (if required), etc.
+
+The instructions will deploy the following:
 - IoT Central Store Analytics Template 
   - 36 thermostat devices being created and simulated
   - Setup Export to Event Hub of telemetry data
@@ -20,9 +24,9 @@ The following will deploy the following:
     - GetDevicesbyOffice: query ADT by Office names to get all DeviceIds at the office
     - GetDevicesbyOfficeFloor: query ADT by Office and Floor to get all Devices on that floor 
 
-## Deployment instructions
+## ⭐ Instructions for Lab Deployment 
 
-On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands to deploy the solution:
+Open [Azure Cloud Shell](https://shell.azure.com/) and run the following commands:
 1. Login to Azure
     ```bash
     az login
@@ -37,27 +41,33 @@ On the [Azure Cloud Shell](https://shell.azure.com/) run the following commands 
     ```bash
     git clone https://github.com/Azure/ADXIoTAnalytics.git
     ```
-    Optionally, You can update the patientmonitoring.parameters.json file to personalize your deployment.
 
 4. Deploy solution
     ```bash
     cd ADXIoTAnalytics
     . ./deploy.sh
     ```
+    ![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
 
-5. Go to https://dataexplorer.azure.com, click Add Cluster, enter your Connection URI.
-
+5. After deploy script completes:
+    - Go to **Home** > **[Azure Data Explorer Clusters](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Kusto%2Fclusters)** > click on the newly deployed **ADX cluster** > copy the **URI** and open it in a new tab. 
+    - Alternatively, **[ADX Web-UI](https://aka.ms/adx.try)** > click **Add Cluster** > enter your **Connection URI** > click **Add**.
+     
+    ![uri](assets/uri.png "uri")
+    ![uri](assets/uri.png "uri")
+     
 7. Expand Database > IoTAnalytics 
 
+    ![png](assets/png.png "png")
+    
 9. Run KQL queries in [sample.kql](kqlsample/sample.kql) to get you started exploring in ADX.
 
-### Example:
-![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
+    ![png](assets/png.png "png")
 
-## Lab Architecture
+## 🏢 Lab Architecture
 ![labarchitecture](assets/labarchitecture.png "labarchitecture")
 
-## Files used in the solution
+## 🧬 Files used in the solution
 
 - **asssets folder**: contains the following files:
   - AutomationPresentation.gif: quick explanation of the solution
