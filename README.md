@@ -5,25 +5,6 @@ Azure Data Explorer can provide valuable insights into your IoT workloads. In th
 - An [Azure account](https://azure.microsoft.com/free) with an active subscription. If you don't have access to an Azure subscription, you may be able to start with a [free account](https://azure.com/free).
 - You must have the necessary privileges within your Azure subscription to create resources, perform role assignments, register resource providers (if required), etc.
 
-The instructions will deploy the following:
-- IoT Central Store Analytics Template 
-  - 36 thermostat devices being created and simulated
-  - Setup Export to Event Hub of telemetry data
-- Event Hub 
-  - Data exported from IoT Central
-  - ADX Data Connection to ingest data
-- Azure Digital Twins
-  - Office, Floors, and Thermostat twins
-  - Atlanta, Dallas, Seattle offices with 6 Floors in each
-  - 36 Thermostat twins created spread across the 3 offices with 2 on each floor
-- Azure Data Explorer
-  - StageIoTRaw table where data lands from Event Hub to get new data
-  - Thermastat table with update policy to transform raw data
-  - Historical data from January 2022 loaded into Thermostat table
-  - Two functions
-    - GetDevicesbyOffice: query ADT by Office names to get all DeviceIds at the office
-    - GetDevicesbyOfficeFloor: query ADT by Office and Floor to get all Devices on that floor 
-
 ## ⭐ Instructions for Lab Deployment 
 
 Open [Azure Cloud Shell](https://shell.azure.com/) and run the following commands:
@@ -67,6 +48,29 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
 
     ![sample](assets/sample.png "sample")
 
+## 🤔 What will be deployed?
+1. **IoT Central** Store Analytics Template 
+  - 36 thermostat devices being created and simulated
+  - Setup Export to Event Hub of telemetry data
+2. **Event Hub **
+  - Data exported from IoT Central
+  - ADX Data Connection to ingest data
+3. **Azure Digital Twins**
+  - Office, Floors, and Thermostat twins
+  - **Atlanta**, **Dallas**, **Seattle** offices with 6 Floors in each
+  - 36 Thermostat twins created spread across the 3 offices with 2 on each floor
+4. **Azure Data Explorer**
+  - **StageIoTRaw** table where data lands from Event Hub to get new data
+  - **Thermastats** table with update policy to transform raw data
+  - Historical data from January 2022 loaded into **Thermostats** table
+  - Two functions
+    - **GetDevicesbyOffice**: query ADT by Office names to get all DeviceIds at the office
+    - GetDevicesbyOfficeFloor: query ADT by Office and Floor to get all Devices on that floor 
+5. **Storate Account**
+  - **adxscript** Container to upload files configDB.KQL and Thermostat_January2022.csv
+6. **Event Grid System Topic**
+  - **BlobCreate** for HistoricalData when Thermostat_January2022.csv is uploaded to automatically ingest to ADX database table Thermostats.
+    
 ## 🏢 Lab Architecture
 ![labarchitecture](assets/labarchitecture.png "labarchitecture")
 
