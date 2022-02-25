@@ -54,7 +54,8 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
     - Alternatively, **[ADX Web-UI](https://aka.ms/adx.try)** > click **Add Cluster** > enter your **Connection URI** > click **Add**.
      
     ![uri](assets/uri.png "uri")
-    ![uri](assets/uri.png "uri")
+    
+    ![add](assets/add.png "add")
      
 7. Expand Database > IoTAnalytics 
 
