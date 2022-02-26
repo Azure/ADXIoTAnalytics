@@ -32,13 +32,13 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
 
 5. After deploy script completes:
     - Go to **Home** > **[Azure Data Explorer Clusters](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Kusto%2Fclusters)** > click on the newly deployed **ADX cluster** > copy the **URI** and open it in a new tab. 
+    
+      ![uri](assets/uri.png "uri")
+    
     - Alternatively, **[ADX Web-UI](https://aka.ms/adx.try)** > click **Add Cluster** > enter your **Connection URI** > click **Add**.
-     
-    ![uri](assets/uri.png "uri")
     
-    ![add](assets/add.png "add")
-    
-    ![added](assets/added.png "added")
+      ![add](assets/add.png "add")
+      ![added](assets/added.png "added")
      
 7. Expand Database > select **IoTAnalytics** to set the Scope of the new script
 
