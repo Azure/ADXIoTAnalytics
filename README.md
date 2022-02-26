@@ -52,7 +52,7 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
 1. **IoT Central** Store Analytics Template 
   - 36 thermostat devices being created and simulated
   - Setup Export to Event Hub of telemetry data
-2. **Event Hub **
+2. **Event Hub**
   - Data exported from IoT Central
   - ADX Data Connection to ingest data
 3. **Azure Digital Twins**
@@ -99,7 +99,7 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
 - patientmonitoring.parameters.json: parameters file used to customize the deployment
 - README.md: This README file
 
-## Authors
+## 🧙‍♂️ Authors
 - Brad Watts (ADX - Senior Program Manager) 
 - Tonio Lora (Director Specialist GBB)
 - Hiram Fleitas (Data & AI - Senior Customer Engineer)
