@@ -32,6 +32,7 @@ function spinner() {
     done
 }
 
+
 function deletePreLine() {
     echo -ne '\033[1A'
     echo -ne "\r\033[0K"
