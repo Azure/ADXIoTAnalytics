@@ -37,12 +37,9 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
     
     - Alternatively, **[ADX Web-UI](https://aka.ms/adx.try)** > click **Add Cluster** > enter your **Connection URI** > click **Add**.
     
-      ![add](assets/add.png "add")
       ![added](assets/added.png "added")
      
 7. Expand Database > select **IoTAnalytics** to set the Scope of the new script
-
-    ![expand](assets/expand.png "expand")
     
 9. Copy the KQL queries from **[sample.kql](kqlsample/sample.kql)** to get you started.
 
