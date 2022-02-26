@@ -91,9 +91,8 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
   - iotcentral.bicep: IoT Central Bicep deployment file
   - storage.bicep: Storage Bicep deployment file. This account is used as temporary storage to download ADX database configuration scripts)
 
-- deploy.sh: script to deploy the solution. THe only one you need to run 
+- **deploy.sh**: script to deploy the solution. **The only one you need to run.**
 - main.bicep: main Bicep deployment file. It includes all the other Bicep deployment files (modules)
-- patientmonitoring.parameters.json: parameters file used to customize the deployment
 - README.md: This README file
 
 ## 🧙‍♂️ Authors
