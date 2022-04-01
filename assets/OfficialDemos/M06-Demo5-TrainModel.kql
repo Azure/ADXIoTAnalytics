@@ -1,0 +1,37 @@
+#connect cluster('demo11.westus').database('ML')
+
+// Options:
+// 1. Train in Jupyter notebook and exporting to Kusto: https://github.com/Azure/azure-kusto-analytics-lib/blob/master/ML/notebooks/Prediction-of-Room-Occupancy-from-Kusto-Table-with-Kqlmagic.ipynb 
+// 2. Train in Kusto using the python() plugin:
+
+// store the trained model in the ML_Models table 
+.set-or-append ML_Models <|
+//
+OccupancyDetection
+| project-away Timestamp
+| evaluate python(typeof(model:string), ```if 1:
+ 
+    label = "Occupancy"
+    
+    train = df.loc[df["Test"] == 0]
+    x_train = train.drop([label, "Test"], axis=1)
+    y_train = train.loc[:, label]
+    
+    test = df.loc[df["Test"] == 1]
+    x_test = test.drop([label, "Test"], axis=1)
+    y_test = test.loc[:, label]
+    
+    from sklearn.linear_model import LogisticRegression
+    
+    clf = LogisticRegression()
+    clf.fit(x_train, y_train)
+    # accuracy = clf.score(x_test, y_test)
+    # print(accuracy)
+    
+    import pickle
+    smodel = pickle.dumps(clf).hex()
+    
+    result = pd.DataFrame({"model": pd.Series(smodel)})
+    
+```)
+| project name="Occupancy1", timestamp=now(), model
