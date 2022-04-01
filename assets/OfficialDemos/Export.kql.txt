@@ -1,0 +1,63 @@
+#connect cluster('adxpm10774.eastus').database(IoTAnalytics)
+
+// https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/data-export/export-data-to-storage
+// .export
+
+// replace stroageaccount, container & key
+
+.export async compressed to parquet (
+    h@"https://{storageaccount}.blob.core.windows.net/{container};{key}"
+  ) with (
+    sizeLimit=100000,
+    namePrefix=export,
+    includeHeaders=all,
+    encoding =UTF8NoBOM
+  )
+  <| Target | where Temp > 70 | distinct EnqueuedTimeUTC | limit 10000
+
+.show operation 87861775-02d3-4cd2-a093-4a646445ce2b details
+
+
+// .export with pernode distribution 
+
+.export async to parquet
+    ( h@"https://iotmonitoringsa10774.blob.core.windows.net/thermostat;324O9......+AStrWi5GQ==" ) 
+    with
+    (
+        distribution="per_node"
+    ) 
+    <| 
+    set query_fanout_nodes_percent = 50;
+    raw
+
+.show operation d4a95fab-d829-4ca9-b313-a7110aeb4670 details
+
+
+
+
+// external table, required for continuous exports
+.show table Thermostats cslschema | project strcat(".create external table ext",TableName," (", Schema , ")")
+
+.create external table extThermostats (EnqueuedTimeUTC:datetime,DeviceId:string,BatteryLevel:long,Temp:real,Humidity:real)
+kind=storage 
+dataformat=parquet  
+( 
+   h@'https://dlshfpoc.blob.core.windows.net/adx?sp=racw.....NCc%3D' 
+)
+
+external_table("extThermostats")
+| sample 10
+
+
+// continuous export to external table
+.show continuous-export ExportThermostats | project StartCursor
+
+.show continuous-exports 
+
+.create-or-alter continuous-export ExportThermostats over (Thermostats) to table extThermostats
+with (intervalBetweenRuns=5m,  forcedLatency=10m, sizeLimit=104857600) //bytes = 100MB
+<| Thermostats
+
+
+// then alter the retenion policies as needed
+

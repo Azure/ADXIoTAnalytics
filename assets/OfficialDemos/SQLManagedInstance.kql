@@ -1,0 +1,10 @@
+#connect cluster('adxpm10774.eastus').database(IoTAnalytics)
+
+//sqlmi
+evaluate sql_request(
+  'Server=tcp:oceanmi.public.ddc9e22985bb.database.windows.net,3342;'
+    'Authentication="Active Directory Integrated";'
+    'Initial Catalog=OceanMI;',
+  'select * from [dbo].[A]')
+| where id > 0
+| project value

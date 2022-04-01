@@ -1,0 +1,181 @@
+#connect cluster('adxpm10774.eastus').database(IoTAnalytics)
+
+.show operations | where StartedOn > ago(1h)
+
+// sample from https://aka.ms/adx.lab
+
+// Create a table
+.create table SampleTable
+(Timestamp:datetime, ApiVersion:string, User:string, RawHeader:dynamic)
+
+// Create a Json ingestion mapping
+.create table SampleTable ingestion json mapping 
+"Mapping01" '[{"column":"Timestamp","path":"$.header.time"},{"column":"ApiVersion","path":"$.header.api_version"},{"column":"RawHeader","path":"$.header"},{"column":"User","path":"$.payload.user"}]'
+
+// View ingestion mappings
+.show table SampleTable ingestion json mappings  
+
+
+// SKIP, try LightIngest.exe 
+// Ingest from public blob
+.ingest into table SampleTable
+@'https://westuskustopublic.blob.core.windows.net/public/SampleData-500-4394582f-668f-4d03-8bba-58f87a7e48a0.json' with (jsonMappingReference = "Mapping01")  
+
+
+
+// IoT Use-case backfill using creationTimePattern
+
+// download lightingest & install WinRaR
+// extract pkg files to C:\
+// run cmd.exe:
+
+// LightIngest.exe "Data Source=https://ingest-adxpm10774.eastus.kusto.windows.net;AAD Federated Security=True" -db:IoTAnalytics -table:SampleTable -source:"https://westuskustopublic.blob.core.windows.net/public/" -pattern:"SampleData-500-4394582f-668f-4d03-8bba-58f87a7e48a0.json" -format:json -limit:2 -cr:10.0 -dontWait:true -mappingRef:Mapping01
+
+
+SampleTable
+| count
+
+SampleTable
+| take 10 
+
+// count by version
+SampleTable
+| extend recordversion = tostring(RawHeader.api_version)
+| summarize count() by recordversion
+| parse recordversion with "v" version
+|project-away recordversion
+
+// timechart with 10 minute bins
+SampleTable
+| extend x = todatetime(RawHeader['time'])
+| summarize count() by bin(x, 10m)
+| render timechart
+
+
+SampleTable
+| summarize min(Timestamp), max(Timestamp) by User
+
+SampleTable
+| where Timestamp > datetime("1/1/2018") and User == 'owild@fabrikam.com'
+| count
+
+SampleTable
+| summarize dcount(Timestamp), min(Timestamp), max(Timestamp) by User
+
+
+
+#connect cluster('demo12.westus').database(GitHub)
+//please email tzgitlin@microsoft.com to get temporary permission on GitHub cluster
+
+// Challanges - Self-Study
+// What was the date yesterday?
+// How many events were in the last 600 days?
+// Take a sample of 10 rows of your data?
+// What is the number of Repos overall?
+// What is the number of unique Repos values?
+// What is the number of unique Repos names?
+// How many Torvalds are there? How many events did they produce?
+// What are the top 10 most watched Repos?
+// (**) Plot the history of all of the events for the past 2 years for Repos from #9.
+
+// 1. What is count of events in Repos that have ‘Azure’ word in their name?
+GithubEvent
+| where Repo has 'Azure'
+| count  
+
+// 2. What is the amount of the Repos overall?
+GithubEvent
+| summarize dcount(tostring(Repo))  
+
+// 3. What are the top 10 most watched Repos?
+GithubEvent
+| where Type == 'WatchEvent'
+| summarize count() by tostring(Repo.name)
+| top 10 by count_   
+
+// 4. Plot the history of all events for the past 2 years for Repos coming out #3.
+let repos = GithubEvent
+| where Type == 'WatchEvent'
+| summarize count() by name=tostring(Repo.name)
+| top 10 by count_
+| project name;
+GithubEvent  
+| where Repo.name in (repos)
+| extend repo = tostring(Repo.name)
+| summarize count() by bin(CreatedAt, 1d), repo
+| render timechart  
+
+// 5. Show top 10 repos with most Watch Event and their total count of events (hint: use join)
+GithubEvent
+| where Type == 'WatchEvent'
+| summarize WatchCounts = count() by name=tostring(Repo.name)
+| top 10 by WatchCounts 
+| join hint.strategy = broadcast  
+(
+    GithubEvent 
+    | extend repo = tostring(Repo.name)
+    | summarize TotalEvents=count() by repo
+) on $left.name == $right.repo
+| project repo, TotalEvents, WatchCounts 
+| order by TotalEvents  
+
+
+
+// .export
+
+.export
+  async compressed
+  to csv (
+    h@"https://iotmonitoringsa10774.blob.core.windows.net/archive;urEBXhes.....e+JzLYun+AStolbq6g=="
+  ) with (
+    sizeLimit=100000,
+    namePrefix=export,
+    includeHeaders=all,
+    encoding =UTF8NoBOM
+  )
+  <| Thermostats | where Temp > 70 | distinct EnqueuedTimeUTC | limit 10000
+
+.show operation 87861775-02d3-4cd2-a093-4a646445ce2b details
+
+
+// .export with pernode distribution 
+
+.show operation d4a95fab-d829-4ca9-b313-a7110aeb4670 details
+.export async  to csv
+    ( h@"https://iotmonitoringsa10774.blob.core.windows.net/thermostat;324O9......+AStrWi5GQ==" ) 
+    with
+    (
+        distribution="per_node"
+    ) 
+    <| 
+    set query_fanout_nodes_percent = 50;
+    Thermostats
+
+.show operation d4a95fab-d829-4ca9-b313-a7110aeb4670 details
+
+
+
+
+// external table, required for continuous exports
+.show table Thermostats cslschema | project strcat(".create external table ",TableName," (", Schema , ")")
+
+.create external table extThermostats (EnqueuedTimeUTC:datetime,DeviceId:string,BatteryLevel:long,Temp:real,Humidity:real)
+kind=storage 
+dataformat=parquet  
+( 
+   h@'https://dlshfpoc.blob.core.windows.net/adx?sp=racw.....NCc%3D' 
+)
+
+external_table("extThermostats")
+| sample 10
+
+
+// continuous export to external table
+.show continuous-export ExportThermostats | project StartCursor
+
+.show continuous-exports 
+
+.create-or-alter continuous-export ExportThermostats over (Thermostats) to table extThermostats
+with (intervalBetweenRuns=5m,  forcedLatency=10m, sizeLimit=104857600) //bytes = 100MB
+<| Thermostats
+
