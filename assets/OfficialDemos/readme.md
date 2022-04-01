@@ -1,7 +1,7 @@
 # Demos E2E - (WIP, edit links)
 
-- All official [demo scripts](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official) end-to-end.
-- Additional, alternate demos available in [Backpocket](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Backpocket).
+- All official [demo scripts](/OfficialDemos) end-to-end.
+- Additional, alternate demos available in [Others](/OfficialDemos/Others).
 
 ## Module 1.1 - Intro
 1. Show how to provision an ADX cluster via portal.azure.com, like shown in steps 1-7 of https://aka.ms/adx.lab.  
