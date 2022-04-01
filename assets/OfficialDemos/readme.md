@@ -67,7 +67,7 @@
    * You may grant them access using this [script](assets/OfficialDemos/Others/0_AddAccess.kql) to your ADX cluster (ie. *adxpm#####.eastus*) to let them get their hands on ADX and run the lab KQL queries. (**Recommended**)
    * They may create a free personal cluster at https://aka.ms/adx.free, ingest the historical csv from the repo to a new table, and run the sample KQL queries. **Alternative**
 
-###IMPORTANT: 
+### IMPORTANT: 
 1. Before you start the HOL, show how to create an ADX cluster via the portal upto the validate section. 
 2. Show the how to setup Azure CLI storage account if it’s the first time for the audience.
 3. Show the Hands-On Lab materials and assist with any questions regarding the materials.
