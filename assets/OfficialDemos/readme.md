@@ -1,4 +1,4 @@
-# Demos E2E
+# Demos E2E - (WIP, edit links)
 
 - All official [demo scripts](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official) end-to-end.
 - Additional, alternate demos available in [Backpocket](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Backpocket).
