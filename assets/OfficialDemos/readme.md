@@ -9,7 +9,7 @@
 3. Show Insights blade
 4. Run the https://aka.ms/adx.try Kusto queries below. 
 
-### Run Script: [M01-Demo1-Intro.kql](/M01-Demo1-Intro.kql) 
+### Run Script: [M01-Demo1-Intro.kql](M01-Demo1-Intro.kql) 
 
 
 ## Module 1.2 - Overview
