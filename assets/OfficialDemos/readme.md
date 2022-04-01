@@ -25,7 +25,7 @@
 4. Connects to a [Hiram's](https://aka.ms/hiram) personal cluster, you can create one at https://aka.ms/adx.free
 5. Data is in the script, nothing else is required.
 
-### Run Script: [M01-Demo2-Overview.kql](assets/OfficialDemos/M01-Demo2-Overview.kql) 
+### Run Script: [M01-Demo2-Overview.kql](M01-Demo2-Overview.kql) 
 
 
 ## Module 1.3 Ingestion
@@ -39,7 +39,7 @@
 ### Ingestion via KQL
 4. Show `.ingest` [example](https://docs.microsoft.com/azure/data-explorer/kusto/management/data-ingestion/ingest-from-storage) to load from blob.
 
-### Run Script: [M01-Demo3-Ingestion.kql](assets/OfficialDemos/M01-Demo3-Ingestion.kql) 
+### Run Script: [M01-Demo3-Ingestion.kql](M01-Demo3-Ingestion.kql) 
 
 
 ## Module 2.1 - IoT
@@ -57,7 +57,7 @@
    * Materialized Views
    * External Tables
 
-### Run Script: [M02-Demo4-IoT.kql](assets/OfficialDemos/M02-Demo4-IoT.kql&version=GBmain) 
+### Run Script: [M02-Demo4-IoT.kql](M02-Demo4-IoT.kql) 
 
 
 ## Module 3 - Hands-on Lab 
@@ -92,7 +92,7 @@ Logs > Cluster availability (KeepAlive) > Run
 Workbooks > ADX
 9. Storage Account > Container > adxscript
 
-### Exercise Script: [M03-HOL.kql](assets/OfficialDemos/M03-HOL.kql) 
+### Exercise Script: [M03-HOL.kql](M03-HOL.kql) 
 
 
 ## Module 6 - ML
@@ -101,7 +101,7 @@ Workbooks > ADX
 3. Run lines 26-31 to invoke custom UDF for KMeans clusters.
 4. Mention how this adds capability to not possible with `autocluster()` and specify 3 clusters
 
-### Run Script: [M03-Demo5-ML.kql](assets/OfficialDemos/M06-Demo5-ML.kql) 
+### Run Script: [M03-Demo5-ML.kql](M06-Demo5-ML.kql) 
 
 
 ## Module 7 - Visuals
@@ -118,7 +118,7 @@ Workbooks > ADX
 * Requires having joined the SG mentioned above on IDWeb.
 * Congratulations, you made to the **FINAL** demo of the day.
 * Methods to execute this demo:
-   1. Preview mode **(Recommended)**. Open in your web browse the notebook [M09-Demo100-NYCTaxiGeoClustering.ipynb](assets/OfficialDemos/M09-Demo100-NYCTaxiGeoClustering.ipynb).
+   1. Preview mode **(Recommended)**. Open in your web browse the notebook [M09-Demo100-NYCTaxiGeoClustering.ipynb](M09-Demo100-NYCTaxiGeoClustering.ipynb).
    2. Azure Data Studio (Requires installing: Kusto extension and KQLMagic)
 * The purpose is to find the best places to Park the taxi based on Pickup rides' latitude and longitude.
 * Step through the code cells one at a time. 
