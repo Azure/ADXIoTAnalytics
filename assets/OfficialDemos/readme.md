@@ -1,7 +1,7 @@
 # Demos E2E - (WIP, edit links)
 
-- All official [demo scripts](/OfficialDemos) end-to-end.
-- Additional, alternate demos available in [Others](/OfficialDemos/Others).
+- All official [demo scripts](/assets/OfficialDemos/) end-to-end.
+- Additional, alternate demos available in [Others](/assets/OfficialDemos/Others).
 
 ## Module 1.1 - Intro
 1. Show how to provision an ADX cluster via portal.azure.com, like shown in steps 1-7 of https://aka.ms/adx.lab.  
@@ -9,7 +9,7 @@
 3. Show Insights blade
 4. Run the https://aka.ms/adx.try Kusto queries below. 
 
-### Run Script: [M01-Demo1-Intro.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M01-Demo1-Intro.kql&version=GBmain) 
+### Run Script: [M01-Demo1-Intro.kql](assets/OfficialDemos/M01-Demo1-Intro.kql) 
 
 
 ## Module 1.2 - Overview
@@ -25,21 +25,21 @@
 4. Connects to a [Hiram's](https://aka.ms/hiram) personal cluster, you can create one at https://aka.ms/adx.free
 5. Data is in the script, nothing else is required.
 
-### Run Script: [M01-Demo2-Overview.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M01-Demo2-Overview.kql&version=GBmain) 
+### Run Script: [M01-Demo2-Overview.kql](assets/OfficialDemos/M01-Demo2-Overview.kql) 
 
 
 ## Module 1.3 Ingestion
 ### Ingestion via One-Click UI (**Important**)
-1. Show [one-click ingestion](https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-one-click).
+1. Show [one-click ingestion](https://docs.microsoft.com/azure/data-explorer/ingest-data-one-click).
 2. Load [Thermostat_January2022.csv](https://github.com/Azure/ADXIoTAnalytics/blob/main/config/Thermostat_January2022.csv) to your [personal cluster](https://aka.ms/adx.free) into a new table.
 
 ### Ingestion via Az CLI 
 3. Show by walking through Hands-On Lab file [configDB.kql line 9](https://github.com/Azure/ADXIoTAnalytics/blob/0c8ce64c00c8277a3510b69f4aa897ec0b87e89a/config/configDB.kql#L9) and [deploy.sh 95-98](https://github.com/Azure/ADXIoTAnalytics/blob/0c8ce64c00c8277a3510b69f4aa897ec0b87e89a/deploy.sh#L95), then [99-100](https://github.com/Azure/ADXIoTAnalytics/blob/0c8ce64c00c8277a3510b69f4aa897ec0b87e89a/deploy.sh#L99) which is how the upload **automatically** occurs during deployment.
 
 ### Ingestion via KQL
-4. Show [`.ingest` example](https://docs.microsoft.com/azure/data-explorer/kusto/management/data-ingestion/ingest-from-storage) to load from blob.
+4. Show `.ingest` [example](https://docs.microsoft.com/azure/data-explorer/kusto/management/data-ingestion/ingest-from-storage) to load from blob.
 
-### Run Script: [M01-Demo3-Ingestion.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M01-Demo3-Ingestion.kql&version=GBmain) 
+### Run Script: [M01-Demo3-Ingestion.kql](assets/OfficialDemos/M01-Demo3-Ingestion.kql) 
 
 
 ## Module 2.1 - IoT
@@ -57,14 +57,14 @@
    * Materialized Views
    * External Tables
 
-### Run Script: [M02-Demo4-IoT.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M02-Demo4-IoT.kql&version=GBmain) 
+### Run Script: [M02-Demo4-IoT.kql](assets/OfficialDemos/M02-Demo4-IoT.kql&version=GBmain) 
 
 
 ## Module 3 - Hands-on Lab 
 * https://aka.ms/adx.iot, follow the [Readme.md](https://github.com/Azure/ADXIoTAnalytics#readme)
 * For the instructor's lab, deploy it prior because it takes a few minutes for IoT Central to start ingesting raw data.
 * If attendee(s) do not have an Azure subscription, or didn't sign-up for a trial prior:
-   * You may grant them access using this [script](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/0_AddAccess.kql&version=GBmain) to your ADX cluster (ie. *adxpm#####.eastus*) to let them get their hands on ADX and run the lab KQL queries. (**Recommended**)
+   * You may grant them access using this [script](assets/OfficialDemos/Others/0_AddAccess.kql) to your ADX cluster (ie. *adxpm#####.eastus*) to let them get their hands on ADX and run the lab KQL queries. (**Recommended**)
    * They may create a free personal cluster at https://aka.ms/adx.free, ingest the historical csv from the repo to a new table, and run the sample KQL queries. **Alternative**
 
 ###IMPORTANT: 
@@ -92,11 +92,7 @@ Logs > Cluster availability (KeepAlive) > Run
 Workbooks > ADX
 9. Storage Account > Container > adxscript
 
-
-https://dev.azure.com/CEandS/Azure-Data-Explorer/_wiki/wikis/ADX-with-IoT-Analytics/1105/Demos
-
-
-### Exercise Script: [M03-HOL.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M03-HOL.kql&version=GBmain) 
+### Exercise Script: [M03-HOL.kql](assets/OfficialDemos/M03-HOL.kql) 
 
 
 ## Module 6 - ML
@@ -105,14 +101,14 @@ https://dev.azure.com/CEandS/Azure-Data-Explorer/_wiki/wikis/ADX-with-IoT-Analyt
 3. Run lines 26-31 to invoke custom UDF for KMeans clusters.
 4. Mention how this adds capability to not possible with `autocluster()` and specify 3 clusters
 
-### Run Script: [M03-Demo5-ML.kql](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M06-Demo5-ML.kql&version=GBmain) 
+### Run Script: [M03-Demo5-ML.kql](assets/OfficialDemos/M06-Demo5-ML.kql) 
 
 
 ## Module 7 - Visuals
 1. Requires having joined the SG mentioned above on IDWeb.
 1. ADX Dashboard: [IoT Demo 01](https://dataexplorer.azure.com/dashboards/474edab9-00cf-4b9e-b785-8669b90c01e4?startTime=24hours&endTime=now&Device_Id=637085868243706792)
 2. Edit query, run again. Emphasize the experience of toggling between queries over live data and dashboards.
-3. Power BI: [Thermostat](https://msit.powerbi.com/links/heOSdYKjLz?ctid=72f988bf-86f1-41af-91ab-2d7cd011db47&pbi_source=linkShare)
+3. Power BI: [M07-Demo7-Thermostat.pbix](assets/OfficialDemos/M07-Demo7-Thermostat.pbix) or published [Thermostat dashboard](https://msit.powerbi.com/links/heOSdYKjLz?ctid=72f988bf-86f1-41af-91ab-2d7cd011db47&pbi_source=linkShare)
 4. Emphasize how Power BI uses Direct Query - very performant on ADX over massive amounts of data. 
 5. Emphasize pining report visuals to Power BI Dashboards that join Finance & Ops insights.
 6. Only demo this one if applicable to attendees: [Grafana IoT Demo Dashboard](https://kustografanademo.scus.azgrafana.io/d/RmU02Dtnz/iot-demo-dashboard?orgId=1&var-Devices=1iqisxd5v6e&var-Devices=1k4gso7qv5y&from=1637640911640&to=1637684111640)
@@ -122,7 +118,7 @@ https://dev.azure.com/CEandS/Azure-Data-Explorer/_wiki/wikis/ADX-with-IoT-Analyt
 * Requires having joined the SG mentioned above on IDWeb.
 * Congratulations, you made to the **FINAL** demo of the day.
 * Methods to execute this demo:
-   1. Preview mode **(Recommended)**. Open in your web browse the notebook [M09-Demo100-NYCTaxiGeoClustering.ipynb](https://dev.azure.com/CEandS/Azure-Data-Explorer/_git/ADX-with-IoT-Analytics?path=/Demos/Official/M09-Demo100-NYCTaxiGeoClustering.ipynb&version=GBmain).
+   1. Preview mode **(Recommended)**. Open in your web browse the notebook [M09-Demo100-NYCTaxiGeoClustering.ipynb](assets/OfficialDemos/M09-Demo100-NYCTaxiGeoClustering.ipynb).
    2. Azure Data Studio (Requires installing: Kusto extension and KQLMagic)
 * The purpose is to find the best places to Park the taxi based on Pickup rides' latitude and longitude.
 * Step through the code cells one at a time. 
