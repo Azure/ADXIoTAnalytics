@@ -108,7 +108,7 @@ Workbooks > ADX
 1. Requires having joined the SG mentioned above on IDWeb.
 1. ADX Dashboard: [IoT Demo 01](https://dataexplorer.azure.com/dashboards/474edab9-00cf-4b9e-b785-8669b90c01e4?startTime=24hours&endTime=now&Device_Id=637085868243706792)
 2. Edit query, run again. Emphasize the experience of toggling between queries over live data and dashboards.
-3. Power BI: [M07-Demo7-Thermostat.pbix](assets/OfficialDemos/M07-Demo7-Thermostat.pbix) or published [Thermostat dashboard](https://msit.powerbi.com/links/heOSdYKjLz?ctid=72f988bf-86f1-41af-91ab-2d7cd011db47&pbi_source=linkShare)
+3. Power BI: [M07-Demo7-Thermostat.pbix](M07-Demo7-Thermostat.pbix) or published [Thermostat dashboard](https://msit.powerbi.com/links/heOSdYKjLz?ctid=72f988bf-86f1-41af-91ab-2d7cd011db47&pbi_source=linkShare)
 4. Emphasize how Power BI uses Direct Query - very performant on ADX over massive amounts of data. 
 5. Emphasize pining report visuals to Power BI Dashboards that join Finance & Ops insights.
 6. Only demo this one if applicable to attendees: [Grafana IoT Demo Dashboard](https://kustografanademo.scus.azgrafana.io/d/RmU02Dtnz/iot-demo-dashboard?orgId=1&var-Devices=1iqisxd5v6e&var-Devices=1k4gso7qv5y&from=1637640911640&to=1637684111640)
