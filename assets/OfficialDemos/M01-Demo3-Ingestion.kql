@@ -1,0 +1,48 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('MyDatabase')
+
+// ref https://docs.microsoft.com/azure/data-explorer/ingest-data-one-click
+// ref https://docs.microsoft.com/azure/data-explorer/ingest-sample-data?tabs=one-click-ingest
+// ref https://docs.microsoft.com/azure/data-explorer/kusto/management/data-ingestion/ingest-from-storage
+
+
+// public sample, no SAS key required.
+.ingest into table StormEvents (
+    h'https://kustosamples.blob.core.windows.net/samplefiles/StormEvents.csv'
+)
+
+// 😟 BadRequest_TableNotExist
+// but wait I need the schema
+
+
+#connect cluster('help').database('Samples')
+
+StormEvents | getschema 
+
+.show table StormEvents cslschema | project strcat(".create table ",TableName," (", Schema , ")")
+
+
+// okay try again.
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('MyDatabase')
+
+.create table StormEvents (StartTime:datetime,EndTime:datetime,EpisodeId:int,EventId:int,State:string,EventType:string,InjuriesDirect:int,InjuriesIndirect:int,DeathsDirect:int,DeathsIndirect:int,DamageProperty:int,DamageCrops:int,Source:string,BeginLocation:string,EndLocation:string,BeginLat:real,BeginLon:real,EndLat:real,EndLon:real,EpisodeNarrative:string,EventNarrative:string,StormSummary:dynamic)
+
+.ingest into table StormEvents (
+    h'https://kustosamples.blob.core.windows.net/samplefiles/StormEvents.csv'
+)
+
+StormEvents | count 
+
+// 🙌😁🙌
+
+.drop table StormEvents ifexists 
+
+
+// mgmt kql
+.show journal 
+| where * has "StormEvents"
+| project Event, EventTimestamp, EntityVersion, EntityName, ChangeCommand
+
+
+.show cluster
+
+.show diagnostics  

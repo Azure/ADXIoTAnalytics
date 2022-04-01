@@ -1,0 +1,135 @@
+#connect cluster('igniteadxsource.eastus2').database('Occupancy')
+
+StageIoTRawData
+| sample 10
+
+StageIoTRawData
+| where EventType has 'Thermostat' and Body has 'temp'
+| project EnqueuedTimeUtc, SubEventType, DeviceID, 
+BatteryLevel = tolong(Body.['BatteryLevel']), 
+Temp = toreal(Body.['temp']),
+Humidity = toreal(Body.['humidity'])
+| sample 10
+
+// .show functions 
+// .create-or-alter function ExtractThermostatData {}
+// .show table Thermostats policy update  
+// .alter table Thermostats policy update '[{"IsEnabled": true, "Source": "StageIoTRawData", "Query": "ExtractThermostatData()", "IsTransactional": false, "PropagateIngestionProperties": true}]'
+
+Thermostats
+| sample 10
+
+//count of rows in table
+Thermostats
+| count
+
+
+//What is the average temp every 1 min?
+Thermostats
+| where EnqueuedTimeUTC > ago(7d)
+| where DeviceId == '637086755190714287'
+| summarize avg(Temp) by bin(EnqueuedTimeUTC,1m)
+| render timechart 
+
+
+//Is there any missing data? 
+//make-series
+//Create series of specified aggregated values along specified axis.
+Thermostats
+| where EnqueuedTimeUTC > ago(6h)
+| where DeviceId == '637086755190714287'
+| make-series AvgTemp=avg(Temp) on EnqueuedTimeUTC from ago(6h) to now() step 1m   
+| render timechart 
+
+//How can I fill the missing values?
+//series_fill_linear()
+//Performs linear interpolation of missing values in a series.
+Thermostats
+| where EnqueuedTimeUTC > ago(6h)
+| where DeviceId == '637086755190714287'
+| make-series AvgTemp=avg(Temp) default=real(null) on EnqueuedTimeUTC from ago(6h) to now() step 1m   
+| extend NoGapsTemp=series_fill_linear(AvgTemp)
+| project EnqueuedTimeUTC, NoGapsTemp
+| render timechart 
+
+
+
+//What will be the temprature for next one hour?
+Thermostats
+| where EnqueuedTimeUTC > ago(2d)
+| where DeviceId == '637086755190714287'
+| make-series AvgTemp=avg(Temp) default=real(null) on EnqueuedTimeUTC from ago(2d) to now()+15m step 1m   
+| extend NoGapsTemp=series_fill_linear(AvgTemp)
+| project EnqueuedTimeUTC, NoGapsTemp
+| extend forecast = series_decompose_forecast(NoGapsTemp, 15)
+| render timechart with(title='Forecasting the next 15min by Time Series Decmposition')
+
+
+//Are there any anomalies for this device?
+Thermostats
+| where EnqueuedTimeUTC > ago(3d)
+| where DeviceId == '637086755190714287'
+| make-series AvgTemp=avg(Temp) default=real(null) on EnqueuedTimeUTC from ago(3d) to now() step 1m   
+| extend NoGapsTemp=series_fill_linear(AvgTemp)
+| project EnqueuedTimeUTC, NoGapsTemp
+| extend anomalies = series_decompose_anomalies(NoGapsTemp,1) 
+| render anomalychart with(anomalycolumns=anomalies)
+
+
+//What the anomalies I should focus on across all devices?
+Thermostats
+| where EnqueuedTimeUTC > ago(3d)
+| make-series AvgTemp=avg(Temp) default=real(null) on EnqueuedTimeUTC from ago(3d) to now() step 1m by DeviceId
+| extend NoGapsTemp=series_fill_linear(AvgTemp)
+| project EnqueuedTimeUTC, DeviceId, NoGapsTemp
+| extend anomalies = series_decompose_anomalies(NoGapsTemp, 1)
+| mv-expand EnqueuedTimeUTC, anomalies, NoGapsTemp
+| where anomalies == 1
+
+//10 devices
+Thermostats
+| summarize count(DeviceId) by DeviceId
+| count
+
+//Hilo & Axceta
+//30days of all devices in 
+Thermostats
+| where ingestion_time() > ago(30d)
+| project EnqueuedTimeUTC, ingestion_time(), latency=(ingestion_time()-EnqueuedTimeUTC) //get latency
+| summarize latency=percentile(latency, 95) by timewindow=bin(ingestion_time(), 15m) //get percentile by buckets
+| summarize timewindow=make_list(timewindow), latency=make_list(latency), anomaly=series_decompose_anomalies(make_list(latency)) //get anomalies
+| project timewindow, latency, anomaly //keep needed columns for chart
+| render anomalychart with(anomalycolumns = anomaly)
+
+//.show materialized-views
+
+//Hourly_Average_Mview
+Thermostats | summarize avg_Battery_Level=avg(BatteryLevel),avg_Temp=avg(Temp), avg_Humidity=avg(Humidity) by DeviceId, bin(EnqueuedTimeUTC,1h)
+
+//Current_Mview
+Thermostats | summarize (curr_Event_Time,curr_Battery_Level,curr_Temp, curr_Humidity)=arg_max(EnqueuedTimeUTC,BatteryLevel,Temp,Humidity) by DeviceId
+
+
+//Materialized views
+Hourly_Average_Mview
+| where EnqueuedTimeUTC > ago(1h)
+| take 1000 
+
+Current_Mview
+
+
+// .show external tables | project-away Folder, DocString
+// .show external table ext_Thermostats cslschema | project strcat(".create external table ",TableName," (", Schema , ")")
+
+// .create-or-alter external table ext_Thermostats (EnqueuedTimeUTC:datetime,SubEventType:string,DeviceId:string,BatteryLevel:long,Temp:real,Humidity:real)
+// kind=storage 
+// partition by (device_id_partition:string = DeviceId, event_date:datetime = startofday(EnqueuedTimeUTC)  
+// pathformat = ("device_id=" device_id_partition "/event_date=" datetime_pattern("yyyy-MM-dd",event_date))  
+// dataformat=parquet
+// ( 
+//    h@'https://occupancysa.blob.core.windows.net/thermostats;******'
+// )
+
+external_table("ext_Thermostats")
+| where EnqueuedTimeUTC between (datetime('03-01-2020 11:00 am') .. datetime('03-01-2020 01:00 pm')) and DeviceId == '637086754472373714'
+| project EnqueuedTimeUTC, BatteryLevel, Temp, Humidity

@@ -1,0 +1,36 @@
+#connect cluster('help').database('Samples')
+
+// 👈 We have automatically added the "Samples" database to your connection pane.
+//    It contains sample data sets that you can use to run KQL queries and get a "feel" for the language.
+// 🏃‍♂️ You can run a query by placing the cursor anywhere on the query text and clicking the run button (or Shift + Enter).
+// 📄 KQL overview https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/ 
+// 📃 Quick KQL reference guide can be found here https://docs.microsoft.com/en-us/azure/data-explorer/kql-quick-reference
+
+// Start by browsing data in the StormEvents table, and view a small sample of records
+// - Most queries start with a table name (in this case StormEvents that contains U.S weather data).
+// - The "take" operator will return the specified number of rows (in this case 10) from the table (not necessarily in order).
+StormEvents
+| take 10
+
+// Create a calculated column by computing a value for every row
+// - The "extend" operator adds a new calculated column.
+// - The "project" operator selects the columns to include in the result
+StormEvents
+| take 5
+| extend Duration = EndTime - StartTime                      
+| project StartTime, EndTime, Duration, EventType, State;    
+
+// Use aggregation functions 
+// - The "summarize" operator calculates aggregations. You can use several aggregation functions in one summarize operator
+// - The "top" operator returns the first N rows of the dataset when the dataset is sorted
+StormEvents 
+| summarize StormCount = count(), TypeOfStorms = dcount(EventType) by State     
+| top 5 by StormCount desc
+
+// Visualize the data by rendering charts
+// - The "render" operator visualizes query result as a chart. It should be the last operator in a query. 
+StormEvents
+| where EventType =="Flood"
+| summarize EventCount = count() by State 
+| where EventCount > 100
+| render piechart

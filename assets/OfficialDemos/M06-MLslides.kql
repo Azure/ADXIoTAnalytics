@@ -1,0 +1,371 @@
+#connect cluster('help').database('Samples')
+
+// explore, dont see metrics
+demo_make_series1 | take 10
+
+// make timeseries
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| render timechart
+
+
+// filtering, ie. noisy signal, change detection
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| extend ma_num=series_fir(num, repeat(1, 5), true, true)
+| render timechart
+
+
+// regression
+demo_series2
+| extend series_fit_2lines(y), //chanes of baseline
+   series_fit_line(y) //general trend
+| render linechart with(xcolumn=x)
+
+
+// seasonlailty, user traffic
+demo_series3
+| render timechart;
+
+demo_series3
+| project (periods, scores) = series_periods_detect(num, 0., 14d/2h, 2) 
+| mv-expand periods, scores
+| extend days=2h*todouble(periods)/1d
+
+
+// element-wise, series_subtract() arithmetic on timeseries
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| extend ma_num=series_fir(num, repeat(1, 5), true, true)
+| extend residual_num=series_subtract(num, ma_num) 
+| where OsVer == "Windows 10"
+| render timechart
+
+
+// timeseries at scale
+let min_t = toscalar(demo_many_series1 | summarize min(TIMESTAMP));  
+let max_t = toscalar(demo_many_series1 | summarize max(TIMESTAMP));  
+demo_many_series1
+| make-series reads=avg(DataRead) on TIMESTAMP in range(min_t, max_t, 1h) by Loc, Op, DB
+| extend (rsquare, slope) = series_fit_line(reads)
+| top 2 by slope asc
+| project Loc, Op, DB, slope
+
+
+
+// Next, talk about: Anomaly Detection
+
+// series_decompose - manifest periodic and trend behaviour.
+// uses series_outliers uses Tukey's fence test. >1.5 or <-1.5 is mild, >3.0 or <-3.0 is strong score.
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t step dt by sid 
+| where sid == 'TS1'
+| extend (baseline, seasonal, trend, residual) = series_decompose(num, -1, 'linefit')  
+| render timechart with(title='Web app. traffic of a month, decomposition', ysplit=panels)
+
+
+// series_decompose_anomalies
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t step dt by sid 
+| where sid == 'TS1'
+| extend (anomalies, score, baseline) = series_decompose_anomalies(num, 2, -1, 'linefit')
+| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of a month, anomalies') 
+
+
+// series_decompose_forecast
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+let horizon = 7d;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t+horizon step dt by sid 
+| where sid == 'TS1'
+| extend forecast = series_decompose_forecast(num, toint(horizon/dt))
+| render timechart with(title='Traffic of a month + forecasting next week') 
+
+
+// series_decompose builds decomp model, and then for each timeseries extrapolate the baseline into the future
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+let horizon = 7d;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t+horizon step dt by sid 
+| extend offset=case(sid=='TS3', 4000000, sid=='TS2', 2000000, 0)
+| extend num=series_add(num, offset)
+| extend forecast = series_decompose_forecast(num, toint(horizon/dt))
+| render timechart with(title='Traffic of a month + forecasting next week') 
+
+
+// Next, talk about: ML autocluster, basket (single set) and diffpatterns (two sets)
+
+// clustering 
+// step by step root cause analysis.
+let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));  
+let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
+demo_clustering1
+| make-series num=count() on PreciseTimeStamp from min_t to max_t step 10m
+| render timechart with(title="Service exceptions over a week, 10 minutes resolution")
+
+// zoom into 2nd spike. 8hrs
+let min_t=datetime(2016-08-23 11:00);
+demo_clustering1
+| make-series num=count() on PreciseTimeStamp from min_t to min_t+8h step 1m
+| render timechart with(title="Zoom on the 2nd spike, 1 minute resolution")
+
+// zoom into 2 minutes
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1 | where PreciseTimeStamp between(min_peak_t..max_peak_t) 
+| count
+
+// take 20 to explore details
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1 | where PreciseTimeStamp between(min_peak_t..max_peak_t) 
+| take 20
+
+
+// that analysis is simplified by autocluster()
+// proprietary algorithm for mining multiple dimensions
+// get interesting segments. "Interesting" means that each segment has significant coverage of both the records set and the features set.
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1 | where PreciseTimeStamp between(min_peak_t..max_peak_t) 
+| evaluate autocluster()
+
+
+// basket() "Apriori" algorithm for mining. 
+// segements above 5% threshold.
+// single record set, unsupervised without labels.
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1 | where PreciseTimeStamp between(min_peak_t..max_peak_t)
+| evaluate basket()
+
+
+// in comes diffpatterns()
+// lets compare the Anomaly & Baseline (two record sets)
+// Baseline contains the refrence.
+// Anomaly has been analyzed by autocluster() and basket(). 
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+let min_baseline_t=datetime(2016-08-23 14:50);
+let max_baseline_t=datetime(2016-08-23 14:58);
+let splitime=(max_baseline_t+min_peak_t)/2.0;
+demo_clustering1
+| where (PreciseTimeStamp between(min_baseline_t..max_baseline_t)) or
+        (PreciseTimeStamp between(min_peak_t..max_peak_t))
+| extend AB=iff(PreciseTimeStamp > splitime, 'Anomaly', 'Baseline')
+| evaluate diffpatterns(AB, 'Anomaly', 'Baseline')
+
+// render segment (Problem vs Normal)
+let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));  
+let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
+demo_clustering1
+// iif(predicate, ifTrue, ifFalse)
+| extend seg = iff(Region == "eau" and ScaleUnit == "su7" and DeploymentId == "b5d1d4df547d4a04ac15885617edba57"
+and ServiceHost == "e7f60c5d-4944-42b3-922a-92e98a8e7dec", "Problem", "Normal") 
+| make-series num=count() on PreciseTimeStamp from min_t to max_t step 10m by seg
+| render timechart
+
+
+// SUMMARY //
+// autocluster and basket implement an unsupervised learning algorithm and are easy to use.
+// diffpatterns implements a supervised learning algorithm and, although more complex, it's more powerful for extracting diffpatterns segments for Root Cause Analysis.
+// These plugins are used interactively in ad-hoc scenarios and in automatic near real-time monitoring services.
+// In ADX, time series anomaly detection is followed by a diagnosis process, that is highly optimized to meet necessary performance standards.
+
+
+// PYTHON 3.6 //
+// sandbox image contains common ML packages: tensorflow, keras, torch, hdbscan, xgboost, and other useful packages
+// imports numpy (as np) and pandas (as pd) by default, you can import others. ie. sklearn 😁
+// disabled by default, enable manually and restart
+
+#connect cluster('adxpm10774.eastus').database('IoTAnalytics')
+
+// udf
+range x from 1 to 360 step 1
+| evaluate python(
+typeof(*, fx:double), //Output schema: append a new fx column to original table 
+```
+result = df
+n = df.shape[0]
+g = kargs["gain"]
+f = kargs["cycles"]
+result["fx"] = g * np.sin(df["x"]/n*2*np.pi*f)
+```
+, pack('gain', 100, 'cycles', 4) //dictionary of parameters
+) | render linechart
+
+
+
+// Unsupervised Learning
+
+#connect cluster('igniteadxsource.eastus2').database('Occupancy')
+
+.show functions 
+
+// UDF to run K-Means clustering using Python plugin
+.create-or-alter function with (folder = "Python") kmeans_sf_OccupDetc(tbl:(*), k:int, features:dynamic, cluster_col:string) {
+    let kwargs=pack('k', k, 'features', features, 'cluster_col', cluster_col);
+    let code='from sklearn.cluster import KMeans\n'
+        '\n'
+        'k = kargs["k"]\n'
+        'features = kargs["features"]\n'
+        'cluster_col = kargs["cluster_col"]\n'
+        '\n'
+        'km = KMeans(n_clusters=k)\n'
+        'df1 = df[features]\n'
+        'km.fit(df1)\n'
+        'result = df\n'
+        'result[cluster_col] = km.labels_\n';
+    tbl
+    | evaluate python(typeof(*), code, kwargs)
+}
+
+// Invoke the custom UDF
+Thermostats
+| where EnqueuedTimeUTC > ago(7d)
+| extend cluster_id=double(null)
+| project EnqueuedTimeUTC, DeviceId, Temp, Humidity, cluster_id
+| invoke kmeans_sf_OccupDetc(3, pack_array("Temp", "Humidity"), "cluster_id")
+| sample 10
+
+
+// Supervised model - pretrained & saved to Models table
+
+// UDF to score data using pre-trained model from ML_Models table.
+.create-or-alter function with (folder = "Python", skipvalidation = "true") 
+classify_sf_OccupDetc(
+    samples:(*), 
+    models_tbl:(name:string,timestamp:datetime,model:string), 
+    model_name:string, 
+    features_cols:dynamic, 
+    pred_col:string) 
+{
+    let model_str = toscalar(
+    ML_Models 
+    | where name == model_name 
+    | top 1 by timestamp desc 
+    | project model
+    );
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code = 'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=[pred_col])'
+    ;
+    samples | evaluate python(typeof(*), code, kwargs)
+} 
+
+
+//Based on the Temp and Humidity - Is the room occupied?
+Thermostats
+| where EnqueuedTimeUTC > ago(15m)
+| extend pred_Occupancy=bool(0)
+| extend CO2=0, HumidityRatio=0
+| invoke classify_sf_OccupDetc(ML_Models, 'Occupancy', pack_array('Temp', 'Humidity', 'BatteryLevel', 'CO2', 'HumidityRatio'), 'pred_Occupancy')
+| project-away SubEventType
+
+
+#connect cluster('adxpm10774.eastus').database('IoTAnalytics')
+
+//must alter cluster callout  policy 
+let script = externaldata(script:string)
+[h'https://kustoscriptsamples.blob.core.windows.net/samples/python/sample_script.py']
+with(format = raw);
+range x from 1 to 360 step 1
+| evaluate python(
+    typeof(*, fx:double), 
+    toscalar(script), 
+    pack('gain', 100, 'cycles', 4))
+| render linechart
+
+// requires AllDatabasesAdmin permission. 
+// grant it via azure portal > adx > security
+// https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/access-control/role-based-authorization
+.show cluster policy callout 
+
+// account & container may differ
+.alter-merge cluster policy callout @'[ { "CalloutType": "sandbox_artifacts", "CalloutUriRegex": "artifcatswestus\\.blob\\.core\\.windows\\.net/public/", "CanCall": true } ]' 
+
+// installs pkg & run python code
+range ID from 1 to 3 step 1 
+| extend Name=''
+| evaluate python(typeof(*), ```if 1:
+    from sandbox_utils import Zipackage
+    Zipackage.install("Faker.zip")
+    from faker import Faker
+    fake = Faker()
+    result = df
+    for i in range(df.shape[0]):
+        result.loc[i, "Name"] = fake.name()
+    ```
+    ,
+    external_artifacts = pack('faker.zip', 'https://artifcatswestus.blob.core.windows.net/public/Faker-8.11.0.zip')) //this one is set to public
+
+
+// R examples //
+
+range x from 1 to 360 step 1
+| evaluate r(
+typeof(*, fx:double), // Output schema: append a new fx column to original table 
+'result <- df\n'      // The R decorated script
+'n <- nrow(df)\n'
+'g <- kargs$gain\n'
+'f <- kargs$cycles\n'
+'result$fx <- g * sin(df$x / n * 2 * pi * f)' 
+, pack('gain', 100, 'cycles', 4) // dictionary of parameters
+) 
+| render linechart
+
+
+
+// PERFORMANCE TIPS //
+
+// use filters, aggs, sample, limit output
+// project (select) before invoking
+// see more in Adv module: tuning for high-concurrency
+.show operations
+| where StartedOn > ago(1d) 
+| project d_seconds = Duration / 1s 
+| evaluate hint.distribution = per_node r( 
+    typeof(*, d2:double),
+    'result <- df\n'
+    'result$d2 <- df$d_seconds\n' 
+  )
+| summarize avg = avg(d2)
+
+
+// get external content
+let script = externaldata(script:string)
+[h'https://kustoscriptsamples.blob.core.windows.net/samples/R/sample_script.r']
+with(format = raw);
+range x from 1 to 360 step 1
+| evaluate r(
+    typeof(*, fx:double), 
+    toscalar(script), 
+    pack('gain', 100, 'cycles', 4))
+| render linechart
