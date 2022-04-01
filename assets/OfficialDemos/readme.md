@@ -64,7 +64,7 @@
 * https://aka.ms/adx.iot, follow the [Readme.md](https://github.com/Azure/ADXIoTAnalytics#readme)
 * For the instructor's lab, deploy it prior because it takes a few minutes for IoT Central to start ingesting raw data.
 * If attendee(s) do not have an Azure subscription, or didn't sign-up for a trial prior:
-   * You may grant them access using this [script](assets/OfficialDemos/Others/0_AddAccess.kql) to your ADX cluster (ie. *adxpm#####.eastus*) to let them get their hands on ADX and run the lab KQL queries. (**Recommended**)
+   * You may grant them access using this [script](Others/0_AddAccess.kql) to your ADX cluster (ie. *adxpm#####.eastus*) to let them get their hands on ADX and run the lab KQL queries. (**Recommended**)
    * They may create a free personal cluster at https://aka.ms/adx.free, ingest the historical csv from the repo to a new table, and run the sample KQL queries. **Alternative**
 
 ### IMPORTANT: 
