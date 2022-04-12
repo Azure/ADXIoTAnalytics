@@ -32,7 +32,6 @@ function spinner() {
     done
 }
 
-
 function deletePreLine() {
     echo -ne '\033[1A'
     echo -ne "\r\033[0K"
@@ -51,10 +50,18 @@ function create_resource_group() {
 }
 
 function deploy_azure_services() {
-    az deployment group create -n $deploymentName -g $rgName \
-        --template-file main.bicep \
-        --parameters deploymentSuffix=$randomNum principalId=$principalId @iotanalytics.parameters.json \
-        --only-show-errors --output none
+    if [ $iotCType -eq 1 ] 
+    then
+        az deployment group create -n $deploymentName -g $rgName \
+            --template-file main.bicep \
+            --parameters deploymentSuffix=$randomNum principalId=$principalId @iotanalyticsStore.parameters.json \
+            --only-show-errors --output none
+    else
+        az deployment group create -n $deploymentName -g $rgName \
+            --template-file main.bicep \
+            --parameters deploymentSuffix=$randomNum principalId=$principalId @iotanalyticsLogistics.parameters.json \
+            --only-show-errors --output none
+    fi
 }
 
 function get_deployment_output() {
@@ -73,6 +80,9 @@ function get_deployment_output() {
     iotCentralAppID=$(az iot central app show -n $iotCentralName -g $rgName --query  applicationId --output tsv)
     numDevices=$(az deployment group show -n $deploymentName -g $rgName --query properties.outputs.deviceNumber.value --output tsv)
     eventHubConnectionString=$(az deployment group show -n $deploymentName -g $rgName --query properties.outputs.eventHubConnectionString.value --output tsv)
+    deployADX=$(az deployment group show -n $deploymentName -g $rgName --query properties.outputs.deployADX.value --output tsv)
+    deployADT=$(az deployment group show -n $deploymentName -g $rgName --query properties.outputs.deployADT.value --output tsv)
+    iotCentralType=$(az deployment group show -n $deploymentName -g $rgName --query properties.outputs.iotCentralType.value --output tsv)
 }
 
 function configure_ADX_cluster() {
@@ -181,20 +191,29 @@ function create_digital_twin_models() {
 }
 
 function deploy_thermostat_devices() {
+    if [ "$iotCentralType" == 'Store Analytics' ] 
+    then
+        iotCentralTemplate='dtmi:m43gbjjsrr5:fp1yz0dm0qs'
+    else
+        iotCentralTemplate='dtmi:ltifbs50b:mecybcwqm'
+    fi
     for (( c=1; c<=$numDevices; c++ ))
-    do
+    do 
         deviceId=$(cat /proc/sys/kernel/random/uuid)
         az iot central device create --device-id $deviceId --app-id $iotCentralAppID \
-            --template dtmi:m43gbjjsrr5:fp1yz0dm0qs --simulated --only-show-errors --output none
+            --template $iotCentralTemplate --simulated --only-show-errors --output none
 
-        floornum=$(expr $c % 18)
+        if [ $deployADT == true ] 
+        then
+            floornum=$(expr $c % 18)
         
-        floor=${floors[$floornum]}
+            floor=${floors[$floornum]}
             
-        az dt twin create -n $dtName --dtmi "dtmi:StageIoTRawData:Thermostat;1" --twin-id $deviceId \
-            --only-show-errors --output none ;\
-        az dt twin relationship create -n $dtName --relationship-id "contains${deviceId}" \
-            --relationship 'floorcontainsdevices' --source $floor --target $deviceId --only-show-errors --output none
+            az dt twin create -n $dtName -g $rgName --dtmi "dtmi:StageIoTRawData:Thermostat;1" --twin-id $deviceId \
+                --only-show-errors --output none ;\
+            az dt twin relationship create -n $dtName -g $rgName --relationship-id "contains${deviceId}" \
+                --relationship 'floorcontainsdevices' --source $floor --target $deviceId --only-show-errors --output none
+        fi
     done
 }
 
@@ -216,16 +235,37 @@ deploymentName=ADXIoTAnalyticsDeployment$randomNum
 rgName=ADXIoTAnalytics$randomNum
 principalId=$(az ad signed-in-user show --query objectId -o tsv)
 
+clear
+echo "Please select from below deployment options"
+echo "     1. ADX IoT Workshop"
+echo "     2. ADX IoT Open Hack"
+read -p "Enter number:" iotCType
+
+while [ $iotCType != 1 ] && [ $iotCType != 2 ]
+do
+    echo "UNKNOWN OPTION SELECTED :("
+    echo "Please select from below deployment options"
+    echo "     1. ADX IoT Workshop"
+    echo "     2. ADX IoT Open Hack"
+    read -p "Enter number:" iotCType
+done
+
 # Setup array to utilize when assiging devices to departments and patients
 floors=('DAL1' 'DAL2' 'DAL3' 'DAL4' 'DAL5' 'DAL6' 'SEA1' 'SEA2' 'SEA3' 'SEA4' 'SEA5' 'SEA6' 'ATL1' 'ATL2' 'ATL3' 'ATL4' 'ATL5' 'ATL6')
 
 banner # Show Welcome banner
 
-echo '1. Starting solution deployment'
+if [ $iotCType -eq 1 ]
+then
+    echo '1. Starting deployment of IoT Analytics Lab'
+else
+    echo '1. Starting deployment of IoT Open Hack Environment'
+fi
+
 add_required_extensions & # Install/Update required eztensions
 spinner "Installing IoT Extensions"
 create_resource_group & # Create parent resurce group
-spinner "Creating Resource Group"
+spinner "Creating Resource Group with name $rgName"
 deploy_azure_services & # Create all additional services using main Bicep template
 spinner "Deploying Azure Services"
 
@@ -233,17 +273,33 @@ echo "2. Starting configuration for deployment $deploymentName"
 get_deployment_output  # Get Deployment output values
 
 # Start Configuration
-configure_ADX_cluster & # Configure ADX cluster
-spinner "Configuring ADX Cluster"
+if [ $deployADX == true ] 
+then
+    configure_ADX_cluster & # Configure ADX cluster
+    spinner "Configuring ADX Cluster"
+fi
+
 # Get/Refresh IoT Central Token 
 az account get-access-token --resource https://apps.azureiotcentral.com --only-show-errors --output none
-create_digital_twin_models & # Create all the models from folder in git repo
-spinner "Creating model for Azure Digital Twins $dtName"
+
+if [ $deployADT == true ] 
+then
+    create_digital_twin_models & # Create all the models from folder in git repo
+    spinner "Creating model for Azure Digital Twins $dtName"
+fi
 
 # Complete configuration
-echo "Creating $numDevices Smart Knee Brace devices on IoT Central: $iotCentralName ($iotCentralAppID) and Digital Twins: $dtName"
-deploy_thermostat_devices # Deploy Thermostat simulated devices
-configure_IoT_Central_output & # On IoT Central, create an Event Hub export and destination with json payload
-spinner " Creating IoT Central App export and destination on IoT Central: $iotCentralName ($iotCentralAppID)"
+if [ $deployADT == true ] 
+then
+    echo "Creating $numDevices devices on IoT Central: $iotCentralName ($iotCentralAppID) and Digital Twins: $dtName"
+    deploy_thermostat_devices # Deploy Thermostat simulated devices
+    configure_IoT_Central_output & # On IoT Central, create an Event Hub export and destination with json payload
+    spinner " Creating IoT Central App export and destination on IoT Central: $iotCentralName ($iotCentralAppID)"
+else
+    echo "Creating $numDevices devices on IoT Central: $iotCentralName ($iotCentralAppID)"
+    deploy_thermostat_devices # Deploy Thermostat simulated devices
+    configure_IoT_Central_output & # On IoT Central, create an Event Hub export and destination with json payload
+    spinner " Creating IoT Central App export and destination on IoT Central: $iotCentralName ($iotCentralAppID)"
+fi
 
 echo "3. Configuration completed"
