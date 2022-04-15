@@ -1,0 +1,7 @@
+.show table StageIoTRawData extents 
+| summarize size=format_bytes(sum(OriginalSize),0,'MB'), compressed=format_bytes(sum(CompressedSize),0,'MB')
+
+
+
+.show table Thermostats extents 
+| summarize size=format_bytes(sum(OriginalSize),0,'MB'), compressed=format_bytes(sum(CompressedSize),0,'MB')
