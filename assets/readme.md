@@ -106,9 +106,11 @@
 * [diffpatterns()](https://docs.microsoft.com/azure/data-explorer/kusto/query/diffpatternsplugin)
 * [diffpatterns_text()](https://docs.microsoft.com/azure/data-explorer/kusto/query/diffpatterns-textplugin)
 * Python plugin
-  ![image](https://user-images.githubusercontent.com/4984616/163604217-762c65e4-e7f8-4d31-89a0-df566f807d06.png)
+
+![image](https://user-images.githubusercontent.com/4984616/163604217-762c65e4-e7f8-4d31-89a0-df566f807d06.png)
 * R plugin
-  ![image](https://user-images.githubusercontent.com/4984616/163604313-244b958f-1d28-46ba-b330-ea1537eee760.png)
+
+![image](https://user-images.githubusercontent.com/4984616/163604313-244b958f-1d28-46ba-b330-ea1537eee760.png)
 * externaldata()
 * external_artifacts
 
