@@ -7,12 +7,12 @@
 
 # Resources 
 
-1. Documentation: aka.ms/adx.docs
-2. Reference Architecture: aka.ms/adx.iotrefarch
-3. Tech Blogs: aka.ms/adx.techblogs
-4. PG Ask me Anything: aka.ms/ama/azuredataexplorer
-5. Free personal cluster: aka.ms/adx.free 
-6. Cost Estimator: aka.ms/adx.cost or aka.ms/adx.cost.old
+1. Documentation: https://aka.ms/adx.docs
+2. Reference Architecture: https://aka.ms/adx.iotrefarch
+3. Tech Blogs: https://aka.ms/adx.techblogs
+4. PG Ask me Anything: https://aka.ms/ama/azuredataexplorer
+5. Free personal cluster: https://aka.ms/adx.free 
+6. Cost Estimator: https://aka.ms/adx.cost or https://aka.ms/adx.cost.old
 
 
 ## Agenda
