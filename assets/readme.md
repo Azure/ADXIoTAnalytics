@@ -3,7 +3,7 @@
 * Eval: https://aka.ms/adx.iot.eval (5 Qs Max). Pls, help us improve this workshop.
 
 ## Slides
-1. [Download](url) PDF of **Full deck - ADX for IoT Analytics.pdf**
+1. [Download](https://github.com/Azure/ADXIoTAnalytics/raw/main/assets/Full%20deck%20-%20ADX%20for%20IoT%20Analytics.pdf) PDF of **Full deck - ADX for IoT Analytics.pdf**
 
 # Resources 
 
