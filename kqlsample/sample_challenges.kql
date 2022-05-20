@@ -1,6 +1,9 @@
 //Data lands in the StageIoTRaw table so lets look at that first
 .show table StageIoTRawData
 
+.show table StageIoTRawData extents 
+| summarize ExtentSize=format_bytes(sum(ExtentSize)), IngestionSize=format_bytes(sum(OriginalSize))
+
 StageIoTRawData
 | limit 10 
 
