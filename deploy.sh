@@ -213,7 +213,7 @@ currentDate=$(date)
 tomorrow=$(date +"%Y-%m-%dT00:00:00Z" -d "$currentDate +1 days")
 deploymentName=ADXIoTAnalyticsDeployment$randomNum
 rgName=ADXIoTAnalytics$randomNum
-principalId=$(az ad signed-in-user show --query objectId -o tsv)
+principalId=$(az ad signed-in-user show --query id -o tsv)
 
 # Setup array to utilize when assiging devices to departments and patients
 floors=('DAL1' 'DAL2' 'DAL3' 'DAL4' 'DAL5' 'DAL6' 'SEA1' 'SEA2' 'SEA3' 'SEA4' 'SEA5' 'SEA6' 'ATL1' 'ATL2' 'ATL3' 'ATL4' 'ATL5' 'ATL6')
