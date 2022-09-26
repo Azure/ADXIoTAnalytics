@@ -21,7 +21,7 @@
    4. proceed to the end and cover `mv-expand` from line `let op=`
    5. add a line to run each in part in steps after `iotPayload`.
    
-3. Watch [readiness video](https://msit.microsoftstream.com/video/1776a78a-515f-481d-b03d-70f13628ef04?st=1421)
+3. Watch [readiness video](https://msit.microsoftstream.com/video/1776a78a-515f-481d-b03d-70f13628ef04?st=1421) & [Transforming IoT Data with KQL](https://www.youtube.com/watch?v=Bx6M93K9siE)
 4. Connects to a [Hiram's](https://aka.ms/hiram) personal cluster, you can create one at https://aka.ms/adx.free
 5. Data is in the script, nothing else is required.
 
