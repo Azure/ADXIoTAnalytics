@@ -22,7 +22,7 @@
    5. add a line to run each in part in steps after `iotPayload`.
    
 3. Watch [readiness video](https://msit.microsoftstream.com/video/1776a78a-515f-481d-b03d-70f13628ef04?st=1421) & [Transforming IoT Data with KQL](https://www.youtube.com/watch?v=Bx6M93K9siE)
-4. Connects to a [Hiram's](https://aka.ms/hiram) personal cluster, you can create one at https://aka.ms/adx.free
+4. Line 1 `#connect` connects to a [Hiram's](https://aka.ms/hiram) personal cluster, you can create one at https://aka.ms/adx.free. Comment out line 1 or edit it to connect to your cluster & database. 
 5. Data is in the script, nothing else is required.
 
 ### Run Script: [M01-Demo2-Overview.kql](M01-Demo2-Overview.kql) 
