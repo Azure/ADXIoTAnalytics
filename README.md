@@ -98,7 +98,7 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
 ## 🧙‍♂️ Authors
 - Brad Watts (ADX - Senior Program Manager) 
 - Tonio Lora (Director Specialist GBB)
-- Hiram Fleitas (Data & AI - Senior Customer Engineer)
+- Hiram Fleitas (Data & AI - Senior Cloud Solutions Architect - Engineering)
 
 ## Contributing
 
