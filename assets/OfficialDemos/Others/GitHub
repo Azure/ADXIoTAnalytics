@@ -1,0 +1,75 @@
+#connect cluster('demo12.westus.kusto.windows.net').database('GitHub') 
+
+// Basics
+// 1.2 Billions records 
+GithubEvent
+| count 
+
+// Sample 
+GithubEvent
+| take 10
+
+// access the Json attributes 
+GithubEvent
+| where CreatedAt > ago(200d) 
+| where Repo has 'kusto'
+| extend name=tostring(Repo.name) 
+| distinct name 
+
+// chart of event per day for 60 days 
+GithubEvent
+| where CreatedAt between (datetime(2017-12-01) .. 60d)
+| summarize count() by bin(CreatedAt, 1d)
+| render timechart 
+
+GithubEvent
+| where Repo has 'Azure'
+| project Repo, RepoName = Repo.name
+| take 50
+
+
+//--------------------
+//--------------------
+//--------------------
+//--------------------
+
+// Advanced aggregations
+
+GithubEvent
+| where Type == "PushEvent"
+| summarize count() by name=tostring(Repo.name)
+| summarize percentiles(count_, 50, 90, 99)
+
+// Joins
+
+// WatchEvent is triggered when a repo is starred. 
+// Showing the top 5 popular repos by WatchEvent should give us a quick view into most popular technologies
+GithubEvent 
+| where Type == "WatchEvent"
+| summarize WatchEvents=count() by RepoName = tolower(tostring(Repo.name))
+| top 5 by WatchEvents 
+// You can see that some of the repos in the list are tutorial and samples
+
+
+// Let's give it another shot with a slightly better tuned popularity indicator for technology repos 
+// Top 5 - popular repos by popularity indicator with different weights for WatchEvent and issue related events (IssueEvent, IssueCommentEvent)
+let watchedRepos =  
+    GithubEvent 
+    | where Type == "WatchEvent"
+    | extend RepoName = tostring(Repo.name)
+    | summarize hint.shufflekey=RepoName WatchEvents=count() by RepoName;
+let issuesRepos =  
+    GithubEvent
+    | where Type in ("IssueCommentEvent", "IssuesEvent")
+    | extend RepoName = tostring(Repo.name)
+   | summarize hint.shufflekey=RepoName IssueEvents=count() by RepoName;
+watchedRepos
+| join hint.shufflekey=RepoName (issuesRepos) on RepoName
+| extend Popularity=(WatchEvents * 0.3) + (IssueEvents*0.7) 
+| top 5 by Popularity 
+| project RepoName, Popularity 
+| render barchart 
+// I'm using Kusto analytics power to create two datasets in query time (repos that were watched and repos with issue related activity)
+// and then joining them together to allow me to calculate a weighted popularity metric
+
+ 
