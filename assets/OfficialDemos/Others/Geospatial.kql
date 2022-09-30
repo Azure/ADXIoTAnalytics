@@ -1,7 +1,6 @@
 // https://www.youtube.com/watch?v=ABJ1gjXAK54
 // https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/geospatial-grid-systems
 
-
 StormEvents
 | take 100 
 | project BeginLon, BeginLat
@@ -78,7 +77,6 @@ StormEvents
 | render scatterchart with (kind=map)
 
 
-
 // Show nearby storms on a polygon
 // http://geojson.io/#map=9/24.5808/-81.1066
 let roadToKeyWest = dynamic({
@@ -128,7 +126,6 @@ StormEvents
 | project BeginLon, BeginLat, EventType
 | where geo_distance_point_to_polygon(BeginLon, BeginLat, roadToKeyWest) < 500
 | render scatterchart with (kind=map)
-
 
 
 // Geoclustering
