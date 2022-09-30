@@ -1,0 +1,164 @@
+#connect cluster('demo12.westus.kusto.windows.net').database('sqlbi')
+
+print ("Welcome")
+
+print now()
+
+// 8 machines in Azure
+.show cluster
+
+.show commands | where * has 'TableName'
+
+.show extents
+| summarize sum(OriginalSize), sum(ExtentSize) by TableName
+| where TableName startswith "BIAzure"
+| extend compRatio = sum_OriginalSize / sum_ExtentSize 
+// ~30TB of data in 4 different tables (traces and perormance counters)
+// Data is compressed and indexed (x10.2 for traces, x21-34 for performance counters)
+// Compressed data and index are persisted to blob and cached on SSD
+
+
+.show table BIAzureTraceMsitScus extents 
+| summarize size=format_bytes(sum(OriginalSize),0,'TB'), compressed=format_bytes(sum(CompressedSize),0,'TB')
+
+
+BIAzureTraceMsitScus | count 
+// The trace table contains 40.9 billion records from 40 days (~1 billion records/day)
+
+BIAzureTraceMsitScus | take 10
+
+// For starters, let's get an idea of how many errors we have had in a single day
+// Aggregate trace records by trace level over 24 hours 
+// Using: Group By/ Aggregate over huge data size
+BIAzureTraceMsitScus 
+| where TraceTimeStamp > datetime(2015-03-31 14:00) and TraceTimeStamp < datetime(2015-04-01 14:00) 
+| summarize count() by Level 
+// Total of 800 million records split into 5 levels
+
+// Sample trace lines
+BIAzureTraceMsitScus 
+| where TraceTimeStamp > datetime(2015-03-31 14:00) and TraceTimeStamp < datetime(2015-04-01 14:00) 
+| where Level == 2 
+| parse Role with RoleType "_" * //new column extract first part of data before the underscroll
+| limit 10 
+
+// Error distribution for 1day, by role type
+let startTime = datetime(2015-03-31 14:00); 
+BIAzureTraceMsitScus 
+| where TraceTimeStamp >= startTime and TraceTimeStamp < startTime + 1d 
+| where Level == 2 
+| parse Role with RoleType "_" * 
+| summarize count() by RoleType, bin(TraceTimeStamp, 10min) 
+| render timechart //show table
+
+// Most frustrated user
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureTraceMsitScus 
+  | where TraceTimeStamp >= startTime and TraceTimeStamp < startTime + 1d
+  | where ClientActivityId <> "00000000-0000-0000-0000-000000000000";
+LookupInput  
+| where EventText has "Event: NotifyAccessTokenCreated (token=<User=" //authed and session created
+| extend UserID= extract(@'User=(\w+)', 1, EventText) //extract the userid
+| project UserID, ClientActivityId  
+| join kind=inner (
+LookupInput 
+| where Level == 2 //then correlate by the error
+| summarize by ClientActivityId 
+) on ClientActivityId  
+| summarize Errors=count() by UserID
+| top 10 by Errors desc
+
+//--------------------
+//--------------------
+//--------------------
+//--------------------
+
+
+// That user's error distribution
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureTraceMsitScus 
+  | where TraceTimeStamp >= startTime and TraceTimeStamp < startTime + 1d
+  | where ClientActivityId <> "00000000-0000-0000-0000-000000000000";
+LookupInput
+| where EventText has "Event: NotifyAccessTokenCreated (token=<User=3309D7035B54096D748C83889EA8CE87CBA253736BECAFDF2D00AB99BF06317D" 
+| project ClientActivityId 
+| join (
+LookupInput
+| where Level == 2
+| where EventText has "Exception object created"  
+| extend ExceptionType = extract("Exception object created: (.*?):", 1, EventText) //what kind of error from the stack
+| summarize by ClientActivityId, ExceptionType
+) on ClientActivityId 
+| summarize count() by ExceptionType   
+| render barchart  
+
+
+/////////////////////////////////////
+/////////////////////////////////////
+/////////////////////////////////////
+
+
+
+// Analyzing the flow of a specific error
+BIAzureTraceMsitScus 
+| where ClientActivityId == '1cf69634-9bb4-42bf-bc01-b71813062d38'
+| extend Trace_Level = iff(Level == 2, "Error" , "Info")
+| project TraceTimeStamp, Trace_Level, EventText 
+// click search "error" started with info, then error
+
+
+// starting from 41B records table
+// not really knowing what I'm looking for
+// to finding a needle in a haystack
+
+// identified a specific user, that suffered the most errors on a specific day
+// what kind of error, bucketing the errors and going back to traces to troubleshoot
+// very powerful tool for any developer thats understanding live services
+
+
+
+// lets have a look at another table. 
+// the performance counter table
+BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+| take 10 
+
+BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+| count
+
+// 30K time series of performance counters data over a month
+// 35b records overall
+// Find the top 3 machines with highest CPU and their behavior over a day
+// over millions of timeseries in the table
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d
+  | where CounterName == @"\Processor(_Total)\% Processor Time";
+let Instances = toscalar(
+LookupInput
+| summarize max_CPU=max(CounterValue) by RoleInstance
+| top 3 by max_CPU desc 
+| summarize makelist(RoleInstance));
+LookupInput
+| where RoleInstance in (Instances)
+| summarize avg_CPU=avg(CounterValue) by RoleInstance, bin(TIMESTAMP, 5m)
+| project TIMESTAMP, RoleInstance, avg_CPU 
+| render timechart 
+
+//
+// Are there other machines in that PowerBI Cluster that exhibit similar behaviour?
+// Detect jump shapes across all 98 instances
+//
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d;
+LookupInput
+| where CounterName == @"\Processor(_Total)\% Processor Time"   
+| make-series cval=avg(CounterValue) default=0 on TIMESTAMP in range(startTime, startTime+1d-15m, 15m) by RoleInstance 
+| extend shapes=series_shapes(cval, false) //allows me to very quickly find similar paterns
+| extend jump=todouble(shapes.jump)
+| where  jump > 0.3
+| render timechart 
