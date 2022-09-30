@@ -1,0 +1,30 @@
+//has_any
+
+// let _state=StormEvents | distinct (State);
+let _state="";
+StormEvents
+| where State has_any (_state)
+| count 
+
+let _state=StormEvents | distinct (State);
+StormEvents
+| where State has_any (_state)
+| count
+
+
+let _state="GULF OF MEXICO";
+StormEvents
+| where State == _state or isempty(_state)
+| count
+
+
+let _state="";
+StormEvents
+| where State == _state or isempty(_state)
+| count
+
+
+let _state="GULF of MEXICO";
+StormEvents
+| where State has_any(_state)
+| count
