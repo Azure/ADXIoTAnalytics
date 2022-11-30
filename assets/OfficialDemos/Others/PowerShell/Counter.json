@@ -1,0 +1,44 @@
+[
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\network interface(lenovo usb ethernet _2)\\bytes total/sec",
+    "InstanceName": "lenovo usb ethernet _2",
+    "CookedValue": 0.0
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\network interface(intel[r] wi-fi 6 ax201 160mhz)\\bytes total/sec",
+    "InstanceName": "intel[r] wi-fi 6 ax201 160mhz",
+    "CookedValue": 120.66184517888617
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\processor(_total)\\% processor time",
+    "InstanceName": "_total",
+    "CookedValue": 0.3195655049476831
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\memory\\% committed bytes in use",
+    "InstanceName": null,
+    "CookedValue": 45.552008237119765
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\memory\\cache faults/sec",
+    "InstanceName": null,
+    "CookedValue": 19.94410664113821
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\physicaldisk(_total)\\% disk time",
+    "InstanceName": "_total",
+    "CookedValue": 0.6540930431130838
+  },
+  {
+    "Timestamp": "2022-11-29T19:20:09.996-05:00",
+    "Path": "\\\\laptop-vc60qq10\\physicaldisk(_total)\\current disk queue length",
+    "InstanceName": "_total",
+    "CookedValue": 0.0
+  }
+]

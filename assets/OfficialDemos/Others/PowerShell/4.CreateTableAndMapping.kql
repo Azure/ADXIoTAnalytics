@@ -1,0 +1,15 @@
+// https://aka.ms/adx.free
+
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('MyDatabase')
+
+// Create table command
+////////////////////////////////////////////////////////////
+.create table ['Counter']  (['Timestamp']:datetime, ['Path']:string, ['InstanceName']:string, ['CookedValue']:real)
+
+// Create mapping command
+////////////////////////////////////////////////////////////
+.create table ['Counter'] ingestion json mapping 'Counter_mapping' '[{"column":"Timestamp", "Properties":{"Path":"$[\'Timestamp\']"}},{"column":"Path", "Properties":{"Path":"$[\'Path\']"}},{"column":"InstanceName", "Properties":{"Path":"$[\'InstanceName\']"}},{"column":"CookedValue", "Properties":{"Path":"$[\'CookedValue\']"}}]'
+
+// Ingest data into table command
+///////////////////////////////////////////////////////////
+// .ingest async into table ['Counter'] (h'<blob path to upload>') with (format='multijson',ingestionMappingReference='Counter_mapping',ingestionMappingType='json',tags="['1cbe5b04-5c46-4403-abe8-e036ab009fd6']")
