@@ -1,13 +1,38 @@
 #  dependencies
 $pkgroot = "C:\Microsoft.Azure.Kusto.Tools\tools\net5.0"
-[System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Data.dll")
+$null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Data.dll")
+$null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
+$null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Cloud.Platform.dll")
+class T {
+    [datetime] $Timestamp
+    [string] $Path
+    [string] $InstanceName
+    [double] $CookedValue
+    T(
+        [datetime] $timestamp,
+        [string] $path,
+        [string] $instanceName,
+        [double] $cookedValue
+    ){
+        $this.Timestamp=$timestamp
+        $this.Path=$path
+        $this.InstanceName=$instanceName
+        $this.CookedValue=$cookedValue
+    }
+}
 
 #  collect data
-$x = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json 
-Write-Host $x
+[T[]]$x = (Get-Counter).CounterSamples | ForEach-Object -Process { [T]::new(
+    $_.Timestamp,
+    $_.Path ,
+    $_.InstanceName ,
+    $_.CookedValue
+)}
+# $x.GetType().GetElementType()
+# $x[0].GetType()
 
 #  set destination
-$uri = "https://kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True"
+$uri = "https://ingest-kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True"
 $db = "MyDatabase"
 $t = "Counter"
 
@@ -15,11 +40,6 @@ $t = "Counter"
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
 $c = [Kusto.Ingest.KustoIngestFactory]::CreateQueuedIngestClient($s)
 $p = [Kusto.Ingest.KustoQueuedIngestionProperties]::new($db, $t)
-$p.Format = [Kusto.Data.Common.DataSourceFormat]::json 
-# $p.IgnoreFirstRecord = $true
-$r = $c.IngestFromStorageAsync($x,$p)
-$r.Status
-$r = $c.IngestFromDataReaderAsync($x,$p)
-$r.Status
-
-# MethodException: Cannot find an overload for "IngestFromDataReaderAsync" and the argument count: "2".
+$dr = new-object Kusto.Cloud.Platform.Data.EnumerableDataReader[T] ($x, 'Timestamp', 'Path', 'InstanceName', 'CookedValue')
+$r = $c.IngestFromDataReaderAsync($dr,$p)
+$r.Result.GetIngestionStatusCollection()
