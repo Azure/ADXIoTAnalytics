@@ -31,7 +31,7 @@ class T {
 # $x.GetType().GetElementType()
 # $x[0].GetType()
 
-#  set destination
+#  destination
 $uri = "https://ingest-kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True"
 $db = "MyDatabase"
 $t = "Counter"
@@ -40,6 +40,6 @@ $t = "Counter"
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
 $c = [Kusto.Ingest.KustoIngestFactory]::CreateQueuedIngestClient($s)
 $p = [Kusto.Ingest.KustoQueuedIngestionProperties]::new($db, $t)
-$dr = new-object Kusto.Cloud.Platform.Data.EnumerableDataReader[T] ($x, 'Timestamp', 'Path', 'InstanceName', 'CookedValue')
+$dr = New-Object Kusto.Cloud.Platform.Data.EnumerableDataReader[T] ($x, 'Timestamp', 'Path', 'InstanceName', 'CookedValue')
 $r = $c.IngestFromDataReaderAsync($dr,$p)
 $r.Result.GetIngestionStatusCollection()
