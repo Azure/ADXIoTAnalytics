@@ -79,3 +79,28 @@ Counter_raw
 | project-away x
 
 Counter
+
+.clear table Counter data 
+
+// run powershell ingestion
+
+.show commands-and-queries | where StartedOn > ago(5m)
+
+
+Counter
+| project lag=ingestion_time()-Timestamp
+
+.show cluster policy ingestionbatching 
+
+.show database policies | project IngestionBatchingPolicy
+
+.show table Counter policy ingestionbatching 
+
+
+Counter_raw
+
+
+.clear table Counter_raw data
+
+
+.create table HelloWorld_raw (MyColum:dynamic)
