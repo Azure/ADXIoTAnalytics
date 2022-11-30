@@ -18,7 +18,7 @@ $db = "MyDatabase"
 $t = "Counter_raw"
 
 #  get data
-[T[]]$x = '[{"msg"="hello world!"}]'
+[T[]]$x = '[{"msg":"hello world!"}]'
 
 #  ingest
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
