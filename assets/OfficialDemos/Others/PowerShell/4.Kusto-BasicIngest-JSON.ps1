@@ -5,6 +5,11 @@ $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Cloud.Platform.dll")
 class T {
     [string] $json
+    T(
+        [string] $json
+    ){
+        $this.json=$json
+    }
 }
 
 #  destination
@@ -13,7 +18,7 @@ $db = "MyDatabase"
 $t = "Counter_raw"
 
 #  get data
-[T[]]$x = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue 
+[T[]]$x = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json 
 
 #  ingest
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
