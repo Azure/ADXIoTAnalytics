@@ -13,3 +13,69 @@
 // Ingest data into table command
 ///////////////////////////////////////////////////////////
 // .ingest async into table ['Counter'] (h'<blob path to upload>') with (format='multijson',ingestionMappingReference='Counter_mapping',ingestionMappingType='json',tags="['1cbe5b04-5c46-4403-abe8-e036ab009fd6']")
+
+.show table Counter ingestion json mappings 
+
+Counter | take 10
+
+.show ingestion failures 
+
+.drop table Counter_raw ifexists
+
+.set-or-replace  Counter_raw <|
+let x=dynamic(
+[
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\network interface(lenovo usb ethernet _2)\\bytes total/sec",
+    "InstanceName": "lenovo usb ethernet _2",
+    "CookedValue": 0.0
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\network interface(intel[r] wi-fi 6 ax201 160mhz)\\bytes total/sec",
+    "InstanceName": "intel[r] wi-fi 6 ax201 160mhz",
+    "CookedValue": 398.40921035096784
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\processor(_total)\\% processor time",
+    "InstanceName": "_total",
+    "CookedValue": 0.5304859844562637
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\memory\\% committed bytes in use",
+    "InstanceName": null,
+    "CookedValue": 44.436068470691346
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\memory\\cache faults/sec",
+    "InstanceName": null,
+    "CookedValue": 9.886084624093495
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\physicaldisk(_total)\\% disk time",
+    "InstanceName": "_total",
+    "CookedValue": 1.5939895396043426
+  },
+  {
+    "Timestamp": "2022-11-29T23:22:35.048-05:00",
+    "Path": "\\\\laptop-vc60qq10\\physicaldisk(_total)\\current disk queue length",
+    "InstanceName": "_total",
+    "CookedValue": 0.0
+  }
+]);
+print x=x;
+
+// .append Counter <|
+Counter_raw
+| mv-expand x
+| extend Timestamp=todatetime(x.Timestamp)
+| extend Path=tostring(x.Path), InstanceName=tostring(x.InstanceName)
+| extend Value=toreal(x.CookedValue)
+| project-away x
+
+Counter
