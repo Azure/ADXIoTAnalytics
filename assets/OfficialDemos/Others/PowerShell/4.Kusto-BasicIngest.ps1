@@ -8,6 +8,17 @@ class T {
     [string] $Path
     [string] $InstanceName
     [double] $CookedValue
+    T(
+        [datetime] $timestamp,
+        [string] $path,
+        [string] $instanceName,
+        [double] $cookedValue
+    ){
+        $this.Timestamp=$timestamp
+        $this.Path=$path
+        $this.InstanceName=$instanceName
+        $this.CookedValue=$cookedValue
+    }
 }
 
 #  destination
@@ -16,10 +27,14 @@ $db = "MyDatabase"
 $t = "Counter"
 
 #  get data
-[T[]]$x = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue
+[T[]]$x = (Get-Counter).CounterSamples | ForEach-Object -Process { [T]::new(
+    $_.Timestamp,
+    $_.Path,
+    $_.InstanceName,
+    $_.CookedValue
+)}
 # $x.GetType().GetElementType()
 # $x[0].GetType()
-# $x
 
 #  ingest
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
