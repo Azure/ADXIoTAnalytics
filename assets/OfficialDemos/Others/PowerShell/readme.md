@@ -5,6 +5,7 @@ Basic examples to read/write (ingest) using PowerShell
 ref: 
 - https://learn.microsoft.com/en-us/azure/data-explorer/kusto/api/netfx/kusto-ingest-client-reference
 - https://github.com/Azure/azure-kusto-samples-dotnet
+- https://www.powershellgallery.com/packages/PowerShell.Azure.Data.Explorer/0.0.4/Content/functions%5CImport-CsvToADX.ps1
 
 ##  Pre-reqs:
 
@@ -17,7 +18,6 @@ Install PowerShell 7:
 ```
 winget install --id Microsoft.Powershell --source winget
 ```
-
 
 Next step:
 1. create another version of 4.Kusto-BasicIngest-JSON.ps1 to collect for 30s and post once, reusing client continuously.
