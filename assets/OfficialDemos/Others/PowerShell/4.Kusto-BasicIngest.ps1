@@ -26,6 +26,9 @@ $uri = "https://ingest-kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;F
 $db = "MyDatabase"
 $t = "Counter"
 
+# kql https://aka.ms/adx.free
+# .create table Counter (Timestamp:datetime, Path:string, InstanceName:string, CookedValue:double)
+
 #  get data
 [T[]]$x = (Get-Counter).CounterSamples | ForEach-Object -Process { [T]::new(
     $_.Timestamp,
