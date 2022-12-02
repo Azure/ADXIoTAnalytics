@@ -10,7 +10,9 @@ $t = "Counter"
 
 #  get data
 $fp = 'C:\hiram_msft\ADXIoTAnalytics\assets\OfficialDemos\Others\PowerShell\Counter.csv'
-Remove-Item $fp -Force
+if (Test-Path $fp){
+    Remove-Item $fp -Force
+  }
 $timeout = new-timespan -Seconds 30
 $sw = [diagnostics.stopwatch]::StartNew()
 while ($sw.elapsed -lt $timeout){
