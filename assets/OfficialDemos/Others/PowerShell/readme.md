@@ -1,6 +1,11 @@
 # PowerShell Samples
 
-Basic examples to read/write (ingest) using PowerShell
+Basic examples to read/write (ingest) using PowerShell. This is **NOT** meant to be an enterprise-agent collection solution. This demos ingestion using PowerShell and Kusto .Net SDK. 
+
+Examples include: 
+- ingesting an **array from memory** 
+- ingesting a **local csv file** 
+- and **streaming** - COMMING SOON.
 
 ref: 
 - https://learn.microsoft.com/en-us/azure/data-explorer/kusto/api/netfx/kusto-ingest-client-reference
