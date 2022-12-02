@@ -20,4 +20,6 @@ winget install --id Microsoft.Powershell --source winget
 ```
 
 Next step:
-1. create another version of 4.Kusto-BasicIngest-JSON.ps1 to collect for 30s and post once, reusing client continuously.
+1. create another version of 4.Kusto-BasicIngest-JSON.ps1 to collect for 30s and post once, reusing client continuously. :white_check_mark:
+2. add from local storgage example
+3. add streaming example
