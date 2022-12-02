@@ -6,7 +6,7 @@ $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
 $ms = [System.IO.MemoryStream]::new()
 $sr = [System.IO.StreamReader]::new($ms)
 $sw = [System.IO.StreamWriter]::new($sr)
-$x = $sr.Read({(Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json})
+$x = $sw.Read({(Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json})
 
 $uri = "https://adxpm10774.eastus.kusto.windows.net;Fed=True"
 $db = "sentinel"
