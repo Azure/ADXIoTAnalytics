@@ -17,11 +17,13 @@ $uri = "https://ingest-kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;F
 $db = "MyDatabase"
 $t = "Counter_raw"
 
-# kql https://aka.ms/adx.free
-# .create table Counter_raw (json:dynamic)
-
 #  get data
-[T[]]$x = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json 
+$timeout = new-timespan -Seconds 30
+$sw = [diagnostics.stopwatch]::StartNew()
+while ($sw.elapsed -lt $timeout){
+  [T[]]$x += (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json 
+  start-sleep -seconds 30
+}
 
 #  ingest
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
