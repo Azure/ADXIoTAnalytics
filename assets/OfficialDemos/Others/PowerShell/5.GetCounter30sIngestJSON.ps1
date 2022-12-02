@@ -22,7 +22,7 @@ $timeout = new-timespan -Seconds 30
 $sw = [diagnostics.stopwatch]::StartNew()
 while ($sw.elapsed -lt $timeout){
   [T[]]$x += (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | ConvertTo-Json 
-  start-sleep -seconds 30
+  start-sleep -seconds 1
 }
 
 #  ingest
