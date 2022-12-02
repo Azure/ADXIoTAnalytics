@@ -14,6 +14,7 @@ $t = "Counter_raw"
 
 #  kql
 #  .create table Counter_raw (x:dynamic)
+#  .alter table Counter_raw policy streamingingestion enable
 
 #  ingest
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
