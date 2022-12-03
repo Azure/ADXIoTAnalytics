@@ -18,3 +18,4 @@ $r = $c.IngestFromStreamAsync($ms,$p)
 $r
 $r.Result.GetIngestionStatusCollection()
 
+# Bug: Ingestion Status Skipped
