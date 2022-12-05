@@ -15,10 +15,10 @@ $p.Format = [Kusto.Data.Common.DataSourceFormat]::multijson
 # $p.IgnoreFirstRecord = $true
 $ms = [System.IO.MemoryStream]::new()
 $sw = [System.IO.StreamWriter]::new($ms)
-$t = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | % { @{Data = $_} } | ConvertTo-Json
+$text = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | % { @{Data = $_} } | ConvertTo-Json
 # echo $text
 $ms.Position = 0
-$sw.Write($t)
+$sw.Write($text)
 $sw.Flush()
 $ms.Position = 0
 # echo $ms
