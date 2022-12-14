@@ -70,6 +70,7 @@
 
 * [DTDLs](https://github.com/Azure/ADXIoTAnalytics/tree/main/dtconfig)
 * https://explorer.digitaltwins.azure.net
+- https://explorer.digitaltwins.azure.net/3DScenes/demo
 
 
 ## Module 5 - KQL
