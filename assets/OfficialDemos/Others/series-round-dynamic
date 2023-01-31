@@ -1,0 +1,4 @@
+let f = dynamic([84.481999999999985,83.809,83.136,82.463000000000008,81.79,81.117000000000019]);
+print f=f
+| mv-expand f
+| summarize f=make_list(round(toreal(f),2))
