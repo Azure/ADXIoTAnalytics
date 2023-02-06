@@ -21,7 +21,7 @@ MyTable //3rows
 
 //arg_max
 MyTable
-| summarize arg_max(ingestion_time(),*) by id //idealy, you'd have a datetime col
+| summarize arg_max(ingestion_time(),*) by id //ideally, you'd have a datetime col
 
 
 // 3. add column
