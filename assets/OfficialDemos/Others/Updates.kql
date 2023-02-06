@@ -1,7 +1,5 @@
-// try on https://aka.ms/adx.free
-
-// how to update data?
-
+// How to update data, try on https://aka.ms/adx.free.
+// 1. sample table
 .drop table MyTable ifexists 
 
 .set MyTable <| 
@@ -12,6 +10,8 @@ datatable (id:int, fname:string, lname:string, age:int) [
 
 MyTable //2rows
 
+
+// 2. append new value
 .append MyTable <| 
 datatable (id:int, fname:string, lname:string, age:int) [
     02,'James','Brown',23
@@ -23,6 +23,8 @@ MyTable //3rows
 MyTable
 | summarize arg_max(ingestion_time(),*) by id //idealy, you'd have a datetime col
 
+
+// 3. add column
 .alter table MyTable (id:int, fname:string, lname:string, age:int, enquedDate:datetime)  
 
 .append MyTable <|
@@ -32,6 +34,8 @@ MyTable
 MyTable
 | summarize arg_max(enquedDate, *) by id
 
+
+// 4. create materialized-view
 .drop materialized-view CurrentMyTable
 
 .create materialized-view with(backfill=true) CurrentMyTable on table MyTable
@@ -43,6 +47,7 @@ MyTable
 CurrentMyTable
 
 
+// 5. add more changes, use view to see update for id 3
 .ingest inline into table MyTable <|
 3, Laura, Fleitas, 32, 1/1/22
 4, Hiram, Fleitas, 99, 1/1/22
@@ -58,4 +63,4 @@ MyTable
 
 CurrentMyTable
 
-//can you update hiram's age?
+// 6. Challenge: Can you fix Hiram's age? :)
