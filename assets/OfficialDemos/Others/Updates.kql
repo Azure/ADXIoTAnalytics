@@ -36,7 +36,7 @@ MyTable
 
 
 // 4. create materialized-view
-.drop materialized-view CurrentMyTable
+.drop materialized-view CurrentMyTable ifexists
 
 .create materialized-view with(backfill=true) CurrentMyTable on table MyTable
 {
