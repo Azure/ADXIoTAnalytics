@@ -1,0 +1,183 @@
+// PLEASE TRY ON YOUR OWN FIRST! https://aka.ms/adxinaday
+// Labs are subject to change in the future based on feedback.
+// SPOILER ALERT: Answers below. 
+
+//v2
+.create-merge table logsRaw(Timestamp:datetime, Source:string, Node:string, Level:string, Component:string, ClientRequestId:string, Message:string, Properties:dynamic) 
+
+
+//3.2
+logsRaw
+| extend originalSize=Properties.OriginalSize, compressedSize=Properties.compressedSize
+| getschema 
+
+//3.3
+logsRaw
+| project Timestamp, ClientRequestId, Level, Message
+| take 10
+
+//3.4
+logsRaw
+| where Timestamp between (datetime(2014-03-08 01:00).. datetime(2014-03-08 10:00))
+| project Timestamp, ClientRequestId, Level, Message
+| take 10 
+
+//3.5
+logsRaw
+| where Component == 'INGESTOR_EXECUTER'
+| extend rowCount=toint(Properties.rowCount)
+| where isnotempty(rowCount)
+| sort by rowCount
+| top 10 by rowCount desc
+
+//3.6
+logsRaw
+| where Component == 'INGESTOR_EXECUTER'
+| extend rowCount=toint(Properties.rowCount), fileFormat=tostring(Properties.format) 
+| project Timestamp, fileFormat, rowCount, ClientRequestId, Component, Level, Message
+| take 10 
+
+//3.7
+logsRaw
+| summarize count() by Component
+
+//3.8
+logsRaw
+| where Message has "ingestion"
+| summarize count() by Level
+
+//3.9
+logsRaw
+| summarize count() by Level
+| render piechart 
+
+
+//3.10
+logsRaw
+| summarize count() by bin(Timestamp, 30m)
+| render timechart 
+
+//4.1
+
+.create table ingestionLogs (Timestamp: datetime, Source: string,Node: string, Level: string, Component: string, ClientRequestId: string, Message: string, Properties: dynamic)
+
+.create function ingestionComponents(){
+logsRaw
+| where Component has_any ('INGESTOR_EXECUTER', 'INGESTOR_GATEWAY', 'INTEGRATIONDATABASE','INTEGRATIONSERVICEFLOWS', 'INTEGRATIONSERVICETRACE', 'DOWNLOADER')
+}
+
+//4.2
+.alter table ingestionLogs policy update 
+@'[{ "IsEnabled": true, "Source": "logsRaw", "Query": "ingestionComponents()"}]'
+
+.set-or-append logsRaw <| logsRaw | take 100000
+
+ingestionLogs | take 10
+
+
+//5.1
+.alter table ingestionLogs policy retention
+```
+{
+    "SoftDeletePeriod": "180.00:00:00",
+    "Recoverability": "Enabled"
+}
+```
+
+//6.2
+.show queries 
+| where StartedOn >ago(7d)
+| summarize count() by User
+
+
+//6.3
+.show journal
+| where EventTimestamp > ago(1h) and Event =='ADD-FUNCTION'
+| project Event, EventTimestamp, ChangeCommand
+
+// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/undo-drop-table-command
+
+//6.4
+.show commands
+| where StartedOn >ago(4h)
+| summarize count() by User
+
+//6.5
+.show extents
+| summarize format_bytes(sum(OriginalSize),2,'MB'), format_bytes(sum(ExtentSize),2,'MB') by TableName
+
+.show tables details 
+
+
+
+//7.1
+let LogType = 'Warning';
+let TimeBucket = 1m;
+logsRaw
+| summarize count() by Level = LogType, bin(Timestamp,TimeBucket)
+| render timechart 
+
+//7.2
+search  "Exception=System.Timeout" | count
+
+//7.3
+logsRaw 
+| where Component == "INGESTOR_EXECUTER" 
+//| parse-kv Properties as (size: int, format: string, rowCount: int, cpuTime: string , duration: string) //bug: cpuTime, duration truncated
+| take 10
+| evaluate bag_unpack(Properties)
+
+ingestionLogs 
+| where Component == "INGESTOR_EXECUTER" 
+| take 10 
+| parse-kv Message as (IngestionCompletionEvent:string, path:string) with (pair_delimiter=' file', kv_delimiter=':')
+
+
+//7.4
+logsRaw
+| where Component=='INGESTOR_EXECUTER' and Node =='Engine000000000378'
+| extend size=tolong(Properties.size)
+| summarize avg(size) by bin(Timestamp, 1h), Node
+| render timechart 
+
+logsRaw
+| where Component=='INGESTOR_EXECUTER' and Node =='Engine000000000378'
+| extend size=tolong(Properties.size)
+| make-series avg(size) default=0 on Timestamp step 1h by Node
+| render timechart 
+
+
+//7.5
+ingestionLogs
+| extend size=tolong(Properties.size)
+| make-series avg(size) default=0 on Timestamp step 10m
+| extend anom=series_decompose_anomalies(avg_size)
+| render anomalychart  with (anomalycolumns=anom)
+
+
+ingestionLogs
+| extend size=tolong(Properties.size)
+| make-series avg(size) default=0 on Timestamp step 10m
+| extend anom=series_decompose_anomalies(avg_size, 0.5)
+| mv-expand Timestamp, avg_size, anom
+| where anom <> 0
+
+//8.1
+ingestionLogs
+| where Timestamp between (todatetime(_startTime) .. todatetime(_endTime))
+| summarize count() by bin(Timestamp, 10m), Component
+| render timechart 
+
+
+let bucket=10m;
+logsRaw
+| where Timestamp between(todatetime(_startTime)..todatetime(_endTime))
+| make-series count() on Timestamp step bucket by Level
+| extend anom = series_decompose_anomalies(count_)
+| render anomalychart with (anomalycolumns=anom)
+
+
+ingestionLogs
+| where Timestamp between(todatetime(_startTime)..todatetime(_endTime))
+| summarize count() by Level
+| render piechart 
