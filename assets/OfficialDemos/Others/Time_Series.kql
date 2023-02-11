@@ -1,0 +1,118 @@
+﻿#connect cluster('https://demo11.westus.kusto.windows.net').database('ML')
+
+demo_make_series1
+| take 100
+
+demo_make_series1
+| summarize count() by bin(TimeStamp, 1h)
+| render timechart 
+
+demo_make_series1
+| make-series count() on TimeStamp step 1h
+//| render timechart
+
+demo_make_series1
+| make-series Cardinality=count() on TimeStamp step 1h by OsVer
+| extend Stats = series_stats_dynamic(Cardinality)
+| project OsVer, Min=Stats.min, Max=Stats.max, Avg=Stats.avg
+
+demo_series1
+| render linechart
+
+demo_series1
+| extend fitY=series_fit_line_dynamic(y).line_fit
+| render linechart
+
+demo_series1
+| extend fitY=series_fit_2lines_dynamic(y).line_fit
+| render linechart 
+
+demo_series1
+| extend Fir = series_fir(y, dynamic([1,1]))
+| render linechart 
+
+let dt=1h;
+demo_make_series1
+| make-series count() on TimeStamp step dt by OsVer
+| render timechart 
+
+let dt=1h;
+demo_make_series1
+| make-series Cardinality=count() on TimeStamp step dt by OsVer
+| extend Seasons=series_periods_detect(Cardinality, 0, 30d/1h,2)
+| extend Season1=Seasons[0]*(dt/1d)
+| extend Season2=Seasons[1]*(dt/1d)
+| project OsVer, Season1, Season2
+
+demo_make_series1
+| make-series Cardinality=count() on TimeStamp step 1h by OsVer
+| where OsVer == "Windows 10"
+| extend (5_baseline, 2_seasonal, 3_trend, 4_residual) = series_decompose(Cardinality)
+| render timechart 
+
+demo_make_series1
+| make-series Cardinality=count() on TimeStamp step 1h by OsVer
+| where OsVer == "Windows 10"
+| extend (anomalies, score, baseline) = series_decompose_anomalies(Cardinality)
+| render anomalychart with (anomalycolumns=anomalies)
+
+let start = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let end = toscalar(demo_make_series1 | summarize max(TimeStamp));
+let Horizon = 5d;
+let dt = 1h;
+demo_make_series1
+| make-series Cardinality=count() on TimeStamp from start to end+Horizon step dt by OsVer
+//| where OsVer == "Windows 10"
+| extend Forecast = series_decompose_forecast(Cardinality, toint(Horizon/dt))
+| render timechart 
+
+demo_many_series1
+| distinct Loc, Op, DB
+| count
+
+demo_many_series1
+| make-series reads=sum(DataRead) on TIMESTAMP step 1h
+| render timechart with(ymin=0)
+
+demo_many_series1
+| make-series reads=sum(DataRead) on TIMESTAMP step 1h by Loc, Op, DB
+| sample 5
+| render timechart with(ymin=0)
+
+demo_many_series1
+| make-series reads=avg(DataRead) on TIMESTAMP step 1h by Loc, Op, DB
+| where array_length(reads)>10
+| extend (rsquare, slope) = series_fit_line(reads)
+| top 2 by slope asc 
+| render timechart 
+
+demo_clustering1
+| take 100
+
+demo_clustering1
+| make-series Cardinality=count() on PreciseTimeStamp step 10m
+| render timechart 
+
+let Anchor = datetime(2016-08-23 15:00:00);
+let WindowWidth=2h;
+demo_clustering1
+| make-series Cardinality=count() on PreciseTimeStamp from Anchor-WindowWidth to Anchor+WindowWidth step 10m
+| render timechart 
+
+let Anchor = datetime(2016-08-23 15:00:00);
+let WindowWidth=2m;
+demo_clustering1
+| where PreciseTimeStamp between ((Anchor-WindowWidth) .. (Anchor+WindowWidth))
+
+let Anchor = datetime(2016-08-23 15:00:00);
+let WindowWidth=2m;
+demo_clustering1
+| where PreciseTimeStamp between ((Anchor-WindowWidth) .. (Anchor+WindowWidth))
+| evaluate autocluster()
+
+let Anchor = datetime(2016-08-23 15:00:00);
+let WindowWidth=2m;
+demo_clustering1
+| where PreciseTimeStamp between ((Anchor-WindowWidth) .. (2*WindowWidth)) or PreciseTimeStamp between ((Anchor-10m) .. (WindowWidth))
+| extend Discriminator = iif(PreciseTimeStamp < Anchor, 'Baseline', 'Anomaly')
+| evaluate diffpatterns(Discriminator, 'Anomaly','Baseline')
