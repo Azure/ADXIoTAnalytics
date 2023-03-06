@@ -1,0 +1,86 @@
+// Demo_Module_2_String_Datetime_2
+
+AppExceptions
+| distinct floor( TimeGenerated,1d)
+
+
+AppExceptions
+| extend day = iif(floor(TimeGenerated, 1d)==floor(now(), 1d), "today", "anotherday")
+
+AppExceptions
+| extend day = iif(startofday(TimeGenerated)==startofday(now()), "today", "anotherday")
+
+
+AppExceptions
+| extend day = iif(floor(TimeGenerated, 1d)==floor(now(), 1d), "today", tostring(floor(TimeGenerated, 1d)))
+| top 10 by day asc  
+
+Perf
+| where CounterName == "% Free Space"
+| extend description = iif( CounterValue <= 10 ,  "Too low", "OK")
+| project Computer
+        , CounterName
+        , CounterValue 
+        , description 
+| top 10 by description desc
+
+Perf
+| where CounterName == "% Free Space"
+| extend description = case( CounterValue < 10, "less than 10 pct left"
+                         , CounterValue < 30, "between 10 and 30 pct left"
+                         , CounterValue < 50, "between 10 and 30 pct left"
+                         , "No problems, more than 50% left"
+                         )
+| project Computer
+        , CounterName
+        , CounterValue 
+        , description 
+
+
+Perf
+| where TimeGenerated >=ago(30d)
+| where CounterName == "% Free Space"
+| extend description = case( CounterValue < 10, "less than 10 pct left"
+                         , CounterValue < 30, "between 10 and 30 pct left"
+                         , CounterValue < 50, "between 30 and 50 pct left"
+                         , "No problems, more than 50% left"
+                         )
+| summarize _count =count() by description
+
+
+//coalesce
+//valuates a list of expressions and returns the first non-null (or non-empty for string) expression.
+
+
+print coalesce(tolong("not a number"), tolong("42"), 666) 
+
+print result = max_of(10, 1, -3, 17) 
+
+
+SecurityAlert
+|  where  isempty( SourceComputerId ) == false
+
+SecurityAlert
+| extend SourceComputer = iif( isempty(SourceComputerId), "NO NAME", SourceComputerId)
+                       
+
+Perf
+| extend SampleCountNull = iif( isnull(SampleCount) 
+                              , "No Sample Count"
+                              , tostring(SampleCount) 
+                              )
+| project Computer 
+        , CounterName 
+        , SampleCountNull 
+
+
+//who what is the difference between isnull and isempty
+datatable( FldInt:int,  FldStr:string)
+[
+    0,"hello", 
+    1, "",
+    int(null), "world",
+    3, ""
+]
+| project i = iif(isnull(FldInt), 0, FldInt)
+        , s = iif(isempty(FldStr), "unknown", FldStr)

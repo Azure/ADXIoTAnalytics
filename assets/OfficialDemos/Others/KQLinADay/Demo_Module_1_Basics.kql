@@ -1,0 +1,91 @@
+//Demo_01 : Table Queries
+
+AppExceptions //note : it might be slow 
+
+AppExceptions // list random 10 rows of data
+| take 10
+
+// to get pipe character use Ctrl+Enter shortcut
+
+AppExceptions //how many rows we have ? note the default time range (24h)
+| count
+
+AppExceptions //This will genereate error, tip : use intelissense
+| Take 10 
+
+
+AppExceptions
+| distinct SeverityLevel
+
+AppExceptions
+| distinct SeverityLevel , ClientType
+
+//so let's create few queries now , how many rows today ?
+AppExceptions
+| where  TimeGenerated >= ago(1d)
+| where  ClientType =="PC"
+| count
+
+
+//what are affected cities ??
+AppExceptions 
+| where  TimeGenerated >= ago(1d)
+| where  ClientType =="PC"
+| distinct ClientCity
+
+AppExceptions
+| where  TimeGenerated >= ago(1d)
+| where  ClientType =="PC"
+| where ClientCountryOrRegion  != "United States" 
+| project ClientBrowser, ClientCity, ClientCountryOrRegion , ClientModel, ClientOS
+
+
+AppExceptions
+| where  TimeGenerated >= ago(1d)
+| where  ClientType =="PC"
+| where ClientCountryOrRegion  != "United States" 
+| project City =ClientCity, Org= strcat(ClientCity , " - ", ClientCountryOrRegion)
+
+
+AppExceptions
+| where  TimeGenerated <= ago(1d)
+| where  ClientType =="PC"
+| sort by TimeGenerated desc 
+| take 10
+
+//same query , but using order by instead of sort, and top instead of take
+AppExceptions
+| where  TimeGenerated >= ago(1d)
+| where  ClientType =="PC"
+| top 10 by TimeGenerated desc 
+
+
+AppExceptions
+| where  TimeGenerated >= ago(10d)
+| count
+
+//let's find how many rows in stackable (multiple) where 
+AppExceptions
+| where  TimeGenerated >= ago(10d)
+| where ClientCity =="New York"
+| where  AppRoleInstance == "RETAILVM01"
+| count
+
+//let's find how many rows in multiple where , but with and
+AppExceptions
+| where  TimeGenerated >= ago(10d)
+| where ClientCity =="New York" and AppRoleInstance == "RETAILVM01"
+| count
+
+//let's find how many rows in multiple where , but with or 
+//note use of "and" operator and "or" operator 
+AppExceptions
+| where  TimeGenerated >= ago(10d)
+| where ClientCity =="New York" or AppRoleInstance == "RETAILVM01"
+| count
+
+AppExceptions
+| where  TimeGenerated >= ago(10d)
+//| where ClientCity =="New York"
+| where OuterMessage contains "SQL"
+| count

@@ -1,0 +1,74 @@
+//Demo_Module_4_Advanced_2
+
+range _numbers from 1 to 10 step 1
+
+range _numbers from 10 to 1 step -2
+
+range March2021 from datetime(2021-03-01) to datetime(2021-03-31) step 1d
+
+range LastWeek from ago(7d) to now() step 1d
+
+range March2021 from datetime(2021-03-01) to datetime(2021-03-31) step 1d
+| extend NumDaysFromToday = now()- March2021
+| project March2021 , NumDaysFromToday
+
+
+range LastWeek from ago(7d) to now() step 1d
+| project TimeGenerated = startofday(LastWeek)
+| join kind=fullouter ( AppExceptions  
+                      | where TimeGenerated > ago(7d)
+                      | summarize Count = count() 
+                               by bin(TimeGenerated, 1d)
+) on TimeGenerated
+| extend TimeDisplay = format_datetime(TimeGenerated, "yyyy-MM-dd") 
+| sort by TimeGenerated desc
+| project TimeDisplay 
+        , Count 
+
+ ////
+
+
+Perf
+| where TimeGenerated > ago(1d)
+|  where CounterName  == "% Processor Time"
+| summarize _num = count() by Computer
+| order by _num
+
+
+Perf
+| where TimeGenerated > ago(1d)
+| where CounterName  == "% Processor Time"
+// | where CounterName == 'Disk Write Bytes/sec'
+| where Computer == "SQL00.na.contosohotels.com"
+| make-series agg=avg(CounterValue) default=0 on TimeGenerated in range(ago(4h), now()+1h, 1m) //now()+1h means 60 datapoints into the future, per 1m.
+| extend series_decompose_forecast(agg,60) //60 data points into the future, not part of lookback in actual
+| render timechart
+
+
+let startTime=ago(2hour);
+let endTime=now();
+Perf 
+| where TimeGenerated between (startTime .. endTime)
+| where CounterName == "% Processor Time" 
+    // and Computer == "ContosoWeb1.ContosoRetail.com" 
+    and ObjectName == "Process" 
+    and InstanceName !in ("_Total", "Idle") 
+| make-series avg(CounterValue) default=0 on TimeGenerated in range(startTime, endTime, 10m) by InstanceName
+| mv-expand TimeGenerated to typeof(datetime), avg_CounterValue to typeof(double) 
+| limit 100000
+
+
+Perf
+| where TimeGenerated > ago(1d)
+| where CounterName == "Available MBytes"
+| make-series avg(CounterValue) default=0 on TimeGenerated in range(ago(1d), now(), 1h) by Computer
+| extend mySeriesStats = series_stats_dynamic(avg_CounterValue) 
+| project Computer
+        , mySeriesStats.min
+        , mySeriesStats.min_idx
+        , mySeriesStats.max
+        , mySeriesStats.max_idx
+        , mySeriesStats.avg
+        , mySeriesStats.stdev
+        , mySeriesStats.variance
+        

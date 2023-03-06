@@ -1,0 +1,322 @@
+// Demo_Module_3_DataTable_Joins
+
+// datatable
+
+// Generates a datatable 
+datatable (ID:int, FirstName:string, Lastname:string, DateEmployment:datetime, KnownBy:string)
+[ 1,  'Thomas', 'Forsberg',datetime(2004-06-03),'Bathory'
+, 2, 'Per Yngve', 'Ohlin', datetime(1991-04-08),'Mayhem'
+, 3 , 'Petrus', 'Ratajczyk', datetime(2010-04-14), 'Carnivore'
+, 4,  'Charles Michael', 'Schuldiner',  datetime(2001-12-13), 'Death'
+, 5,  ' Ian Frasier', 'Kilmister',  datetime(2015-12-28), 'Lemmy'
+, 6,  'Ronald James', 'Padavona',  datetime(2010-06-16), 'Dio'
+, 7,  'Jeffrey John', 'Hanneman',  datetime(2013-05-02), 'Slayer'
+, 8,  'Clifford Lee', 'Burton',  datetime(1986-09-27), 'Metallica'
+]
+
+let DeadPoetSociety = datatable (ID:int, FirstName:string, Lastname:string, DateEmployment:datetime, KnownBy:string)
+[ 1,  'Thomas', 'Forsberg',datetime(2004-06-03),'Bathory'
+, 2, 'Per Yngve', 'Ohlin', datetime(1991-04-08),'Mayhem'
+, 3 , 'Petrus', 'Ratajczyk', datetime(2010-04-14), 'Carnivore'
+, 4,  'Charles Michael', 'Schuldiner',  datetime(2001-12-13), 'Death'
+, 5,  ' Ian Frasier', 'Kilmister',  datetime(2015-12-28), 'Lemmy'
+, 6,  'Ronald James', 'Padavona',  datetime(2010-06-16), 'Dio'
+, 7,  'Jeffrey John', 'Hanneman',  datetime(2013-05-02), 'Slayer'
+, 8,  'Clifford Lee', 'Burton',  datetime(1986-09-27), 'Metallica'];
+DeadPoetSociety 
+| project FirstName, Lastname, KnownBy
+
+////
+let Bands=datatable (BandID:int, Name:string, country:string)
+[1, 'Slayer', 'USA',
+ 2, 'Death','USA',
+ 3, 'Destruction','Germany',
+ 4, 'Kreator','Germany', 
+ 1, 'Slayer without Dave and jeff', 'USA' ];
+let Albums= datatable (AlbumId:int , BandID:int, AlbumName:string, orderNum:int)
+[1, 1, 'Show No Mercy',1,
+ 2, 1, 'Hell Awaits', 2,
+ 3, 1, 'Reign in Blood', 3,
+ 4, 4, 'Endless Pain', 1,
+ 5, 4, 'Pleasure to Kill', 1,
+ 6, 2, 'Human', 4,
+ 7, 2, 'Individual Thought Patterns', 5,
+ 8, 2, 'Symbolic', 6,
+ 9, 2, 'The Sound of Perseverance', 7,
+ 10, 5, 'Walls of Jericho', 2 ];
+// Bands;
+// Albums; 
+Bands 
+// | join kind=inner Albums on BandID 
+| join kind = inner (Albums) on $left.BandID==$right.BandID
+
+// fullouter 
+// inner
+// innerunique [DEFAULT] 
+// leftanti 
+// leftantisemi
+// leftouter
+// leftsemi
+// rightanti
+// rightantisemi
+// rightouter
+// rightsemi
+
+
+let Bands=datatable (BandID:int, Name:string, country:string)
+[1, 'Slayer', 'USA',
+ 2, 'Death','USA',
+ 3, 'Destruction','Germany',
+ 4, 'Kreator','Germany', 
+ 1, 'Slayer without Dave and jeff', 'USA' ];
+let Albums= datatable (AlbumId:int , BandID:int, AlbumName:string, orderNum:int)
+[1, 1, 'Show No Mercy',1,
+ 2, 1, 'Hell Awaits', 2,
+ 3, 1, 'Reign in Blood', 3,
+ 4, 4, 'Endless Pain', 1,
+ 5, 4, 'Pleasure to Kill', 1,
+ 6, 2, 'Human', 4,
+ 7, 2, 'Individual Thought Patterns', 5,
+ 8, 2, 'Symbolic', 6,
+ 9, 2, 'The Sound of Perseverance', 7,
+ 10, 5, 'Walls of Jericho', 2 ];
+Bands 
+| join  kind = rightsemi (Albums) on $left.BandID==$right.BandID
+
+
+//
+
+let Bands= datatable (BandID:int, Name:string, country:string)
+[1, 'Slayer', 'USA', 2, 'Death','USA', 3, 'Destruction','Germany', 4, 'Kreator','Germany',  1, 'Slayer without Dave and jeff', 'USA' ];
+let Albums= datatable (AlbumId:int , BandID:int, AlbumName:string, orderNum:int)
+[1, 1, 'Show No Mercy',1, 2, 1, 'Hell Awaits', 2, 3, 1, 'Reign in Blood', 3, 4, 4, 'Endless Pain', 1, 5, 4, 'Pleasure to Kill', 1, 6, 2, 'Human', 4, 7, 2, 'Individual Thought Patterns', 5, 8, 2, 'Symbolic', 6, 9, 2, 'The Sound of Perseverance', 7, 10, 5, 'Walls of Jericho', 2 ];
+Bands 
+//| join  kind = innerunique (Albums) on $left.BandID==$right.BandID  // 1. innerunique, 
+//| join  kind = inner  (Albums) on $left.BandID==$right.BandID  // 1. inner, 
+// | join  kind = leftouter  (Albums) on $left.BandID==$right.BandID     // 2. leftouter 
+| join  kind = leftsemi (Albums) on $left.BandID==$right.BandID  // 1. innerunique, 
+//| join  kind = rightouter  (Albums) on $left.BandID==$right.BandID     // 2. rightouter 
+//| join  kind = fullouter   (Albums) on $left.BandID==$right.BandID     // 2. fullouter 
+// | project BandID, Name, AlbumName  
+// | join  kind = leftanti (Albums) on $left.BandID==$right.BandID     // 2. leftanti 
+| project BandID, Name
+
+
+// Cross-join 
+let Bands= datatable (BandID:int, Name:string, country:string)
+[1, 'Slayer', 'USA', 2, 'Death','USA', 3, 'Destruction','Germany', 4, 'Kreator','Germany',  1, 'Slayer without Dave and jeff', 'USA' ];
+let Albums= datatable (AlbumId:int , BandID:int, AlbumName:string, orderNum:int)
+[1, 1, 'Show No Mercy',1, 2, 1, 'Hell Awaits', 2, 3, 1, 'Reign in Blood', 3, 4, 4, 'Endless Pain', 1, 5, 4, 'Pleasure to Kill', 1, 6, 2, 'Human', 4, 7, 2, 'Individual Thought Patterns', 5, 8, 2, 'Symbolic', 6, 9, 2, 'The Sound of Perseverance', 7, 10, 5, 'Walls of Jericho', 2 ];
+Bands
+| extend abc=1 
+| join kind=inner (Albums | extend abc=1) on abc
+
+
+Perf
+| where TimeGenerated > ago(365d)
+| take 1000
+| join (Alert) on Computer
+| getschema 
+
+
+
+Perf
+| where CounterName == "% Processor Time"
+| where TimeGenerated >=ago(365d)
+| project Computer 
+        , CounterName 
+        , CounterValue 
+        , PerfTime=TimeGenerated 
+| join ( Alert        
+       | project Computer 
+               , AlertName 
+               , AlertDescription 
+               , ThresholdOperator 
+               , ThresholdValue 
+               , AlertTime=TimeGenerated 
+       | where AlertName contains "high processor usage" 
+       )
+    on Computer
+
+
+    // --- UNION: Takes two or more tables and returns the rows of all of them.
+
+UpdateSummary 
+| union Update 
+
+
+
+let CityUSA= datatable (CityID:int, Name:string, country:string)
+[1, 'Seattle', 'USA', 2, 'Miami','USA', 3, 'NewYork','USA' ];
+let CityNor= datatable (CityID:int, Name:string, country:string)
+[101, 'Oslo', 'Nor', 102, 'Bergen','Nor'];
+CityUSA
+| union CityNor
+
+/////
+
+
+let CityUSA= datatable (CityUSID:int, Name:string, country:string) //note column CityUSID 
+[1, 'Seattle', 'USA', 2, 'Miami','USA', 3, 'NewYork','USA' ];
+let CityNor= datatable (CityNorID:int, Name:string, country:string) //note column CityNorID
+[101, 'Oslo', 'Nor', 102, 'Bergen','Nor' ];
+CityUSA
+| union CityNor
+
+// or //
+
+let CityUSA= datatable (CityUSID:int, Name:string, country:string) //note column CityUSID 
+[1, 'Seattle', 'USA', 2, 'Miami','USA', 3, 'NewYork','USA' ];
+let CityNor= datatable (CityNorID:int, Name:string, country:string) //note column CityNorID
+[101, 'Oslo', 'Nor', 102, 'Bergen','Nor' ];
+(CityUSA
+| project Id = CityUSID, Name, country)
+| union (CityNor | project Id = CityNorID, Name, country)
+
+
+let CityUSA= datatable (CityUSID:int, Name:string, country:string) //note column CityUSID 
+[1, 'Seattle', 'USA', 2, 'Miami','USA', 3, 'NewYork','USA' ];
+let CityNor= datatable (CityNorID:int, Name:string, country:string) //note column CityNorID
+[101, 'Oslo', 'Nor', 102, 'Bergen','Nor' ];
+(CityUSA
+| project CityUSID, Name, country)
+| union withsource = "SourceTable"  // add column[0] to note from which table is coming 
+( CityNor
+| project CityNorID, Name, country)
+
+
+let CityUSA= datatable (CityUSID:int, Name:string, country:string) //note column CityUSID 
+[1, 'Seattle', 'USA', 2, 'Miami','USA', 3, 'NewYork','USA' ];
+let CityNor= datatable (CityNorID:int, Name:string, country:string) //note column CityNorID
+[101, 'Oslo', 'Nor', 102, 'Bergen','Nor' ];
+CityUSA
+| union withsource = "SourceTable" 
+ CityNor
+
+
+// Using union isfuzzy=true to access non-existing view:                                     
+let View_1 = view () { print x=1 };
+let View_2 = view () { print x=1 };
+let OtherView_1 = view () { print x=1 };
+union isfuzzy=true
+(View_1 | where x > 0), 
+(View_2 | where x > 0),
+(View_3 | where x > 0) //observe unable to resolve entity
+
+
+
+// Using union isfuzzy=true and wildcard access:
+let View_1 = view () { print x=1 };
+let View_2 = view () { print x=1 };
+let OtherView_1 = view () { print x=1 };
+union isfuzzy=true View*, SomeView*, OtherView*
+| count
+
+
+// pivot
+
+
+SecurityAlert
+| where TimeGenerated >=ago(365d)
+| project AlertSeverity, ProviderName
+| evaluate pivot(ProviderName)
+
+
+
+SecurityAlert
+| where TimeGenerated >=ago(365d)
+| project AlertSeverity, ProviderName
+| evaluate pivot(AlertSeverity)
+
+
+
+
+
+///LET
+
+Perf
+| distinct CounterName 
+
+// Asign  a constant value
+let _minCounterValue = 50;
+let _counterName = "% Processor Time";
+Perf
+| project Computer 
+        , TimeGenerated 
+        , CounterName 
+        , CounterValue 
+| where CounterName == _counterName
+    and CounterValue <= _minCounterValue
+
+
+//let will act as parametrisation
+let From = datetime(2023-02-01);
+let To = datetime(2023-02-05);
+Perf
+| where TimeGenerated between (From ..To)
+| project Computer 
+        , TimeGenerated 
+        , CounterName 
+        , CounterValue 
+
+
+
+// or it be used to hold calculated values
+let From = ago(12h);
+let To = now();
+Perf
+| where TimeGenerated between (From ..To)
+| project Computer 
+        , TimeGenerated 
+        , CounterName 
+        , CounterValue 
+
+
+UpdateSummary 
+| union Update
+| distinct  Computer
+
+//let can hold datasets, to make things like union more readable
+let _compName = "SQL01.na.contosohotels.com";
+let _UpdtSum = UpdateSummary
+  | where Computer == _compName
+  | where TimeGenerated >= ago(365d)
+  | project Computer
+          , ComputerEnvironment
+          , ManagementGroupName
+          , OsVersion
+          , Resource
+          , ResourceGroup
+          , SourceSystem
+          , Type
+          , NETRuntimeVersion;
+let Updt = Update
+  | where Computer == _compName
+  | where TimeGenerated >= ago(365d)
+  | project Computer
+          , ComputerEnvironment
+          , ManagementGroupName
+          , OSVersion
+          , Resource
+          , ResourceGroup
+          , SourceSystem
+          , Type
+          , Title
+          , UpdateState;
+union withsource = "SourceTable" 
+      _UpdtSum
+    , Updt
+| take 1000
+
+
+
+//  let can hold a function
+let date_Diff_In_Days = (date1:datetime, date2:datetime = datetime(2023-01-01))
+                     { (date1 - date2) / 1d };
+print output=date_Diff_In_Days(now(), todatetime("2023-02-01"))
+
+
+// Here is an example where we take the default for date2
+let date_Diff_In_Days2 = (date1: datetime, date2:datetime = datetime("2023-01-01"))            
+                     { (date1 - date2) / 1d };
+print date_Diff_In_Days2(now())

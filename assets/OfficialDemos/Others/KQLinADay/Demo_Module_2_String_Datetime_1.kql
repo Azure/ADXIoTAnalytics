@@ -1,0 +1,138 @@
+print str = strcat("hello", " ", "world")
+
+Perf
+| take 10
+
+Perf
+| summarize count() by ObjectName, CounterName
+
+
+Perf
+| extend ObjectName_Container = strcat('[' ,ObjectName, '] ', CounterName )
+| summarize count() by ObjectName_Container
+
+
+Perf 
+| distinct CounterPath
+
+Perf 
+| extend _CounterPath = split(CounterPath, "\\")
+| project _CounterPath
+
+
+Perf 
+| extend _CounterPath_Computer = split(CounterPath, "\\",2)
+| extend _CounterPath_ObjectInstance = split(CounterPath, "\\",3)
+| extend _CounterPath_CounterName = split(CounterPath, "\\",4)
+| project _CounterPath_Computer, _CounterPath_ObjectInstance, _CounterPath_CounterName, CounterValue
+
+
+
+print translate("abc", "o", "abc")
+
+print translate("abcdefghijkl","I nedcofbrak","abcddebfghhddbijdkl")
+
+print translate("lkjihgfedcba","karbfocden I","abcddebfghhddbijdkl")
+
+
+//DATETIME/TIMESPAN Functions
+
+
+
+AppExceptions 
+| where TimeGenerated >= ago(1d)
+
+//           d - days
+//           h - hours
+//           m - minutes
+//           s - seconds
+//          ms - milliseconds
+// microsecond - microseconds
+//        tick - nanosecond
+
+print ago(12h)
+
+print iff(ago(1h)>=ago(1h),'yes','no')
+
+print now()
+
+print
+year = datetime_diff('year',datetime(2017-01-01),datetime(2000-12-31)),
+quarter = datetime_diff('quarter',datetime(2017-07-01),datetime(2017-03-30)),
+month = datetime_diff('month',datetime(2017-01-01),datetime(2015-12-30)),
+week = datetime_diff('week',datetime(2017-10-29 00:00),datetime(2017-09-30 23:59)),
+day = datetime_diff('day',datetime(2017-10-29 00:00),datetime(2017-09-30 23:59)),
+hour = datetime_diff('hour',datetime(2017-10-31 01:00),datetime(2017-10-30 23:59)),
+minute = datetime_diff('minute',datetime(2017-10-30 23:05:01),datetime(2017-10-30 23:00:59)),
+second = datetime_diff('second',datetime(2017-10-30 23:00:10.100),datetime(2017-10-30 23:00:00.900)),
+millisecond = datetime_diff('millisecond',datetime(2017-10-30 23:00:00.200100),datetime(2017-10-30 23:00:00.100900)),
+microsecond = datetime_diff('microsecond',datetime(2017-10-30 23:00:00.1009001),datetime(2017-10-30 23:00:00.1008009)),
+nanosecond = datetime_diff('nanosecond',datetime(2017-10-30 23:00:00.0000000),datetime(2017-10-30 23:00:00.0000007))
+
+
+SecurityAlert
+| where TimeGenerated > ago(100d)
+| take 10
+
+
+SecurityAlert
+| where TimeGenerated > ago(60d)
+| where AlertSeverity in ("High", "Medium")
+| extend HowLongAgo=( now() - TimeGenerated )
+       , TimeSinceStartOfYear=( TimeGenerated - datetime(2021-01-01) )
+| project AlertName 
+        , AlertSeverity
+        , DisplayName  
+        , TimeGenerated 
+        , HowLongAgo 
+        , TimeSinceStartOfYear 
+| top 10 by HowLongAgo asc
+
+
+SecurityAlert
+| where TimeGenerated > ago(100d)
+| where AlertSeverity in ("High", "Medium")
+| extend _HourOfday = hourofday(TimeGenerated) 
+| summarize count() by _HourOfday
+| order by  _HourOfday asc
+//show the graph 
+
+SecurityAlert
+| where TimeGenerated > ago(100d)
+| extend _duration=( EndTime - StartTime )
+| project AlertName 
+        , AlertSeverity
+        , DisplayName , 
+    _duration
+| order by _duration asc
+
+
+SecurityEvent
+| where TimeGenerated >=ago(365d)
+| extend MonthGenerated = startofmonth(TimeGenerated)
+| project Activity, MonthGenerated
+| summarize EventCount=count() by MonthGenerated, Activity
+| sort by MonthGenerated, Activity
+
+
+SecurityEvent
+| where TimeGenerated >=ago(365d)
+| extend MonthGenerated = startofmonth(TimeGenerated)
+| project MonthGenerated 
+| summarize EventCount=count() by MonthGenerated 
+| sort by MonthGenerated asc
+
+
+SecurityEvent
+| where TimeGenerated between (datetime(2022-12-01)..datetime(2023-01-05))  //holidays but BEWARE!!
+// | where TimeGenerated between (datetime(2022-12-01)..datetime(2023-02-06))  //holidays OK!!
+| extend dayGenerated = startofday(TimeGenerated)
+| project dayGenerated
+| summarize EventCount=count() by dayGenerated
+| sort by dayGenerated asc
+
+
+Perf
+| where CounterName == "% Processor Time" 
+| where CounterValue between ( 70.0 .. 100.0 )
+//| distinct Computer 

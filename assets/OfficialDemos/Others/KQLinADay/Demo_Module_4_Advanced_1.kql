@@ -1,0 +1,70 @@
+//Demo_Module_4_Advanced_1
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate pivot(ProviderName)
+
+
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate pivot(AlertSeverity)
+
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate basket()
+
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate basket(0.16)
+
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate autocluster()
+
+SecurityAlert
+| where TimeGenerated >=ago(90d)
+| project AlertSeverity, ProviderName
+| evaluate autocluster(0.10)
+
+Perf
+| where TimeGenerated >= ago(5d)
+| project  Computer, CounterName, InstanceName, CounterValue
+| evaluate diffpatterns(InstanceName, 'C:', 'D:')
+
+
+Perf
+| where TimeGenerated >= ago(5d)
+| where CounterName  == "% Free Space"
+| where InstanceName in ('C:', 'D:')
+| project Computer,  CounterName, InstanceName, CounterValue
+
+
+Perf
+| where TimeGenerated >= ago(5d)
+| where CounterName  == "% Free Space"
+| project Computer,  CounterName, InstanceName, CounterValue
+| evaluate diffpatterns(InstanceName, 'C:', 'D:')
+
+
+//reduce: Groups a set of strings together based on value similarity.
+Perf
+| where TimeGenerated >= ago(12h)
+| project Computer 
+// | distinct  Computer 
+| reduce by Computer
+
+
+
+
+range x from 1 to 1000 step 1
+| project MyText = strcat("MachineLearningX", tostring(toint(rand(10))))
+| reduce by MyText  with threshold=0.001 , characters = "X"

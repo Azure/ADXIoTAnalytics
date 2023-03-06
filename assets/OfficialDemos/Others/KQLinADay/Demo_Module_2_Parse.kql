@@ -1,0 +1,227 @@
+//Demo_Module_2_Parse
+
+Alert
+| where TimeGenerated > ago(14d)
+| take 10
+| project  Query
+
+
+Alert
+| where TimeGenerated > ago(30d)
+| extend _Query=split(Query, "|")
+| project _Table = _Query[0],
+    _WhereClauses = _Query[1],
+    _WhereClauses2 = _Query[2],
+    _WhereClausesFinal = _Query[3]
+
+
+AppExceptions
+| project Assembly
+
+AppExceptions
+| parse Assembly with *
+    "Version=" _version
+    "Culture=" _myCulture
+    "PublicKeyToken=" _myPKT
+| project Assembly, _version, _myCulture, _myPKT
+| top 10 by _version desc
+
+
+Perf
+| where ObjectName == "LogicalDisk" and InstanceName matches regex "[A-Z]:"
+| project Computer 
+        , CounterName 
+        , extract("([A-Z]):", 0, InstanceName)
+
+
+// mv-expand: Expands multi-value dynamic arrays or property bags into multiple records.
+SecurityAlert
+| where TimeGenerated > ago(365d)
+// | where ProviderName =="MDATP"
+| extend ExtProps=todynamic(ExtendedProperties)
+| project ProviderName, ExtendedProperties, ExtProps
+| mv-expand kind=array ExtProps 
+
+
+// take a look into ExtendedProperties
+{ "Windows Defender ATP link": "{\"displayValue\":\"Investigate the alert in the Windows Defender ATP portal\",\"kind\":\"Link\",\"value\":\"https://securitycenter.windows.com/alert/da637539517325400548_1028460159\",\"alertBladeVisible\":true}", "File Name": "cryptdll.dll", "File Path": "C:\\Windows\\System32", "File Sha256": "8925892119315293c49d09a26191149660934bf1e5d3d023722e90339ada38aa", "Machine Name": "victim00", "Machine Domain": "na.contosohotels.com", "User Name": "SYSTEM", "User Domain": "NT AUTHORITY", "resourceType": "Virtual Machine", "ServiceId": "d1ec73b8-9ebd-4176-abcd-f5fe690bb748", "ReportingSystem": "Azure" }
+
+
+SecurityAlert
+| where TimeGenerated >ago(365d)
+// | where ProviderName =="MDATP"
+| extend ExtProps=todynamic(ExtendedProperties)
+| project ExtendedProperties,AlertName, TimeGenerated
+        , ExtProps["Windows Defender ATP link"] 
+        , ExtProps["File Name"]
+        , ExtProps["File Path"]
+        , ExtProps["File Sha256"]
+        , ExtProps["Machine Name"]
+        , ExtProps["Machine Domain"]
+        , ExtProps["User Name"]
+        , ExtProps["User Domain"]
+        , ExtProps["resourceType"]
+        , ExtProps["ServiceId"]
+        , ExtProps["ReportingSystem"]
+
+//datatable: Returns a table whose schema and values are defined in the query itself.
+//mv-expand: Expands multi-value dynamic arrays or property bags into multiple records.
+datatable (b:dynamic)
+[dynamic({"Activity start time (UTC)":"2022/12/29 15:00:04.0483059","Activity end time (UTC)":"2022/12/29 15:59:56.6967652","Attacker source IP":"Unknown","Attacker source computer name":"Hostname: SQL00","Number of successful authentication attempts to host":"9","Number of failed authentication attempts to host":"989","Accounts used to successfully sign in to host":"SQL12\\timadmin","Ratio of failed vs. successful authentication attempts to host":"109","Top accounts with failed sign in attempts (count)":"sqlservice (989)","Was RDP session initiated":"No","resourceType":"Virtual Machine","ServiceId":"dbfb7648-62fa-454c-a867-1fcd94b8a2ba","ReportingSystem":"Azure"})]
+| mv-expand bagexpansion=array b 
+| extend key=b[0], val=b[1]
+
+
+SecurityAlert
+| where TimeGenerated >ago(365d)
+// | getschema 
+| take 1
+| extend ExtProps=todynamic(ExtendedProperties)
+| mv-expand kind=array ExtProps
+| project TimeGenerated, AlertName, ExtProps
+| order by TimeGenerated
+| extend key=ExtProps[0], val=ExtProps[1]
+
+
+SecurityAlert
+| where TimeGenerated >ago(365d)
+// | where ProviderName =="MDATP"
+| extend ExtProps=todynamic(ExtendedProperties)
+| project AlertName, TimeGenerated
+        , ExtProps["Activity start time (UTC)"]
+        , ExtProps["Activity end time (UTC)"]
+        , ExtProps["Attacker source IP"]
+        , ExtProps["Attacker source computer name"]
+        , ExtProps["Number of successful authentication attempts to host"]
+        , ExtProps["Number of failed authentication attempts to host"]
+        , ExtProps["Accounts used to successfully sign in to host"]
+        , ExtProps["Ratio of failed vs. successful authentication attempts to host"]
+        , ExtProps["Top accounts with failed sign in attempts (count)"]
+        , ExtProps["Was RDP session initiated"]
+        , ExtProps["resourceType"]
+        , ExtProps["ServiceId"]
+        , ExtProps["ReportingSystem"]
+
+
+
+// take a look into displayValue
+{"displayValue":"Investigate the alert in the Windows Defender ATP portal","kind":"Link","value":"https://securitycenter.windows.com/alert/da637535810234416118_1541414830","alertBladeVisible":true}
+
+SecurityAlert
+| where TimeGenerated >ago(365d)
+// | where ProviderName =="MDATP"
+| extend ExtProps=todynamic(ExtendedProperties)
+| extend ExtProps2=todynamic(ExtProps["Windows Defender ATP link"])
+| extend ExtProps22=replace(@'\"',@'"', tostring(ExtProps2))
+| extend ExtProps3=todynamic(ExtProps22)
+| project ExtendedProperties ,AlertName, TimeGenerated
+        , ExtProps["Windows Defender ATP link"] 
+        , ExtProps["File Name"]
+        , ExtProps["File Path"]
+        , ExtProps["File Sha256"]
+        , ExtProps["Machine Name"]
+        , ExtProps["Machine Domain"]
+        , ExtProps["User Name"]
+        , ExtProps["User Domain"]
+        , ExtProps["resourceType"]
+        , ExtProps["ServiceId"]
+        , ExtProps["ReportingSystem"]
+        , ExtProps3["displayValue"]
+        , ExtProps3["kind"]
+        , ExtProps3["value"]
+        , ExtProps3["alertBladeVisible"]
+        , ExtProps3
+
+
+
+{ "Windows Defender ATP link": "
+{\"displayValue\":\"Investigate the alert in the Windows Defender ATP portal\",\"kind\":\"Link\",
+\"value\":\"https://securitycenter.windows.com/alert/da637539517325400548_1028460159\",\"alertBladeVisible\":true}",
+ "File Name": "samlib.dll", 
+ "File Path": 
+ "C:\\Windows\\System32", 
+ "File Sha256": 
+ "fad279ce82d1616a533d6e5d3a20543b51fdbdde4c764e09f6a01c8b0e44218a", 
+ "Machine Name":  "victim00", 
+ "Machine Domain": "na.contosohotels.com", 
+ "User Name": 
+ "SYSTEM", 
+ "User Domain": "NT AUTHORITY", "resourceType": "Virtual Machine", "ServiceId": "d1ec73b8-9ebd-4176-abcd-f5fe690bb748", "ReportingSystem": "Azure" }	
+
+
+
+SecurityAlert
+| where TimeGenerated >ago(365d)
+| project AlertName, AlertSeverity, ProviderName, ExtendedProperties
+| order by ProviderName
+
+
+SecurityAlert 
+| where TimeGenerated >ago(365d)
+| where ProviderName =="MSTIC"
+
+SecurityAlert 
+| where TimeGenerated >ago(365d)
+| where ProviderName =="MDATP"
+
+
+
+{ "Windows Defender ATP link": "
+{\"displayValue\":\"Investigate the alert in the Windows Defender ATP portal\",\"kind\":\"Link\",
+\"value\":\"https://securitycenter.windows.com/alert/da637539517325400548_1028460159\",\"alertBladeVisible\":true}",
+ "File Name": "samlib.dll", 
+ "File Path": 
+ "C:\\Windows\\System32", 
+ "File Sha256": 
+ "fad279ce82d1616a533d6e5d3a20543b51fdbdde4c764e09f6a01c8b0e44218a", 
+ "Machine Name":  "victim00", 
+ "Machine Domain": "na.contosohotels.com", 
+ "User Name": 
+ "SYSTEM", 
+ "User Domain": "NT AUTHORITY", "resourceType": "Virtual Machine", "ServiceId": "d1ec73b8-9ebd-4176-abcd-f5fe690bb748", "ReportingSystem": "Azure" }	
+
+
+
+// extract: Get a match for a regular expression from a source string.Optionally, convert the extracted substring to the indicated type.
+// extract(regex, captureGroup, source [, typeLiteral])
+ SecurityAlert 
+| where ProviderName =="MDATP"
+| extend _MachineName=extract('"Machine Name": "(.*)"', 1, ExtendedProperties)
+| extend _WinDEf=extract('"Windows Defender ATP link": "(.*)"', 1, ExtendedProperties)
+| project ExtendedProperties, _WinDEf, _MachineName
+| order by  _MachineName asc
+
+
+///parse_csv: Splits a given string representing a single record of comma-separated values and returns a string array with these values.
+AppExceptions 
+| distinct Assembly
+
+AppExceptions 
+| extend flds = parse_csv(Assembly)
+| project flds
+
+AppExceptions 
+| extend flds = parse_csv(Assembly)
+| project   _assemblyName=flds[0],
+            _assemblyVersion=flds[1],
+            _assemblyCulture=flds[2],
+            _assemblyPKT=flds[3]
+
+
+
+AppExceptions 
+| take 10
+| extend flds = parse_csv(Assembly)
+| extend _assemblyVersion=split(flds[1], "=",1)
+| extend _assemblyCulture=split(flds[2], "=",1)
+| extend _assemblyPKT=split(flds[3], "=",1)
+| project   _assemblyName=flds[0],
+            _assemblyVersion,
+            _assemblyCulture,
+            _assemblyPKT
+
+
+//parse-kv: Extracts structured information from a string expression and represents the information in a key/value form.
+print str="ThreadId:458745723, Machine:Node001, Text: The service is up, Level: Info"
+| parse-kv str as (Text:string, ThreadId:long, Machine:string) with (pair_delimiter=',', kv_delimiter=':')
+| project-away str
