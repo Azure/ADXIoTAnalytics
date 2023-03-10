@@ -1,4 +1,5 @@
-By using https://aka.ms/LADemo try to execute following tasks:
+## Lab1 
+### By using https://aka.ms/LADemo try to execute following tasks:
 
 1. How do I query AppExceptions table ?
 - Query AppExceptions table
