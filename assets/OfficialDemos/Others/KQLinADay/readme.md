@@ -9,7 +9,6 @@
 - [Demo 7](./Demo_Module_3_Let_Extend.kql)
 - [Demo 8](./Demo_Module_4_Advanced_1.kql)
 - [Demo 9](./Demo_Module_4_Advanced_2.kql)
-
 - [Lab 1](./Lab01.md)
 - [Lab 2](./Lab02.md)
 - [Lab 3](./Lab03.md)
