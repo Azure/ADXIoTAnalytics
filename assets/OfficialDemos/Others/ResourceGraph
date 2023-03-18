@@ -1,0 +1,62 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net').database('MyDatabase')
+
+// GET
+let Uri = "https://prices.azure.com/api/retail/prices?$filter=serviceName eq 'Azure Purview' and location eq 'EU West'";
+evaluate http_request(Uri)
+| project ResponseBody.Items
+| mv-expand ResponseBody_Items
+| evaluate bag_unpack(ResponseBody_Items)
+
+
+
+// webapi callout is missing
+.show cluster policy callout
+
+// enable webapi callout for https
+.alter cluster policy callout @'[{"CalloutType": "webapi","CalloutUriRegex": "https*","CanCall": true}]'
+
+// multiple callout types, webapi https* added last
+.alter cluster policy callout @'[{"CalloutType": "sandbox_artifacts", "CalloutUriRegex": "artifcatswestus\\.blob\\.core\\.windows\\.net/public/", "CanCall": true}, {"CalloutType": "sandbox_artifacts", "CalloutUriRegex": "artifcatswestus\\.blob\\.core\\.windows\\.net/kusto/", "CanCall": true}, {"CalloutType": "sandbox_artifacts", "CalloutUriRegex": "artifcatswestus\\.blob\\.core\\.windows\\.net/python/", "CanCall": true}, {"CalloutType": "sandbox_artifacts", "CalloutUriRegex": "artifacts\\.blob\\.core\\.windows\\.net/kusto/", "CanCall": true }, {"CalloutType": "webapi", "CalloutUriRegex": "https*", "CanCall": true}]'
+
+.show cluster policy callout 
+
+let Uri = "https://prices.azure.com/api/retail/prices?$filter=serviceName eq 'Azure Purview' and location eq 'EU West'";
+evaluate http_request(Uri)
+| project ResponseBody.Items
+| mv-expand ResponseBody_Items
+| evaluate bag_unpack(ResponseBody_Items)
+
+
+
+/////////////////////////////
+// Resource Graph rest-api //
+/////////////////////////////
+
+let uri='https://management.azure.com/providers/Microsoft.ResourceGraph/operations?api-version=2020-04-01-preview';
+let headers=dynamic({'authorization':'Bearer mytoken'});
+evaluate http_request(uri, headers)
+
+
+//https://learn.microsoft.com/en-us/rest/api/azureresourcegraph/resourcegraph(2020-04-01-preview)/resources/resources?tabs=HTTP&source=docs#access-a-properties-field
+
+let uri='https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2020-04-01-preview';
+let headers=dynamic({'authorization':'Bearer mytoken'});
+let content='{"query":"Resources | where type =~ \'Microsoft.Compute/virtualMachines\' | summarize count() by tostring(properties.storageProfile.osDisk.osType)"}';
+evaluate http_request_post(uri, headers, headers, content)
+| mv-expand data=ResponseBody.data
+| mv-expand rows=data.rows
+// | extend properties_storageProfile_osDisk_osType=rows[0], count_ = rows[1]
+// | project ResponseBody, data, properties_storageProfile_osDisk_osType, count_
+
+
+
+/////////////////
+// Enrich data //
+/////////////////
+
+//lets join hearbeat next to enrich it.
+
+//LAW: https://ade.loganalytics.io/subscriptions/e4e06275-58d1-4081-8f1b-be12462eb701/resourcegroups/adxiotanalytics10774/providers/microsoft.operationalinsights/workspaces/sentinel10774
+
+cluster('https://ade.loganalytics.io/subscriptions/e4e06275-58d1-4081-8f1b-be12462eb701/resourcegroups/adxiotanalytics10774/providers/microsoft.operationalinsights/workspaces/sentinel10774').database('sentinel10774').heartbeat
+| take 10
