@@ -42,7 +42,7 @@ evaluate http_request(uri, headers)
 let uri='https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2020-04-01-preview';
 let headers=dynamic({'authorization':'Bearer mytoken'});
 let content='{"query":"Resources | where type =~ \'Microsoft.Compute/virtualMachines\' | summarize count() by tostring(properties.storageProfile.osDisk.osType)"}';
-evaluate http_request_post(uri, headers, headers, content)
+evaluate http_request_post(uri, headers, dynamic(null), content)
 | mv-expand data=ResponseBody.data
 | mv-expand rows=data.rows
 // | extend properties_storageProfile_osDisk_osType=rows[0], count_ = rows[1]
