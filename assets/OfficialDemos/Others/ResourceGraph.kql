@@ -37,8 +37,8 @@ let headers=dynamic({'authorization':'Bearer mytoken'});
 evaluate http_request(uri, headers)
 
 
-//https://learn.microsoft.com/en-us/rest/api/azureresourcegraph/resourcegraph(2020-04-01-preview)/resources/resources?tabs=HTTP&source=docs#access-a-properties-field
-
+// https://learn.microsoft.com/en-us/rest/api/azureresourcegraph/resourcegraph(2020-04-01-preview)/resources/resources?tabs=HTTP&source=docs#access-a-properties-field
+// POST
 let uri='https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2020-04-01-preview';
 let headers=dynamic({'authorization':'Bearer mytoken'});
 let content='{"query":"Resources | where type =~ \'Microsoft.Compute/virtualMachines\' | summarize count() by tostring(properties.storageProfile.osDisk.osType)"}';
