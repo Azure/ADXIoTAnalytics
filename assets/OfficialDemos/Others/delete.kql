@@ -1,0 +1,7 @@
+MyTable
+| summarize count() by IngestionTimeUSEastern=datetime_utc_to_local(ingestion_time(),'US/Eastern')
+| order by IngestionTimeUSEastern desc
+
+.delete table MyTable records with (whatif=true) <| MyTable | where datetime_utc_to_local(ingestion_time(),'US/Eastern') == '2023-03-18T12:29:51.3236264Z'
+
+// https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/deleting-individual-records-in-a-table/ba-p/3166847
