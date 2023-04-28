@@ -1,0 +1,51 @@
+﻿// Rarest book gone missing!
+
+.drop table Books ifexists
+
+.drop table Shelves ifexists 
+
+.execute database script <|
+// Create table for the books
+.create table Books(rf_id:string, book_title:string, publish_date:long, author:string, language:string, number_of_pages:long, weight_gram:long)
+// Import data for books
+// (Used data is utilzing catalogue from https://github.com/internetarchive/openlibrary )
+.ingest into table Books ('https://kustodetectiveagency.blob.core.windows.net/digitown-books/books.csv.gz') with (ignoreFirstRecord=true)
+// Create table for the shelves
+.create table Shelves (shelf:long, rf_ids:dynamic, total_weight:long) 
+// Import data for shelves
+.ingest into table Shelves ('https://kustodetectiveagency.blob.core.windows.net/digitown-books/shelves.csv.gz') with (ignoreFirstRecord=true)
+
+
+// Luckily, everything is digital in the Digitown library:
+// - Each book has its parameters recorded: number of pages, weight.
+// - Each book has RFID sticker attached (RFID: radio-transmitter with ID).
+// - Each shelve in the Museum sends data: what RFIDs appear on the shelve and also measures actual total weight of books on the shelve.
+
+// Unfortunately, the RFID of the "De Revolutionibus Magnis Data" was found on the museum floor - detached and lonely.
+// Perhaps, you will be able to locate the book on one of the museum shelves and save the day?
+
+
+// hint 1
+Books | where author has 'Kustov' //or book_title == 'De Revolutionibus Magnis Data' or publish_date ==1613 or weight_gram == 1764
+
+// hint 2
+// Shelves data consist of book references (rf_ids) and the total weight of books measured by the shelve. 
+// Here is a query example of how single shelf data can be examined: 
+Shelves 
+| where shelf == '5853' 
+| mv-expand rf_id = rf_ids to typeof(string) 
+| lookup Books on rf_id 
+| project shelf, author, book_title, total_weight, weight_gram
+
+
+Shelves 
+| mv-expand rf_id = rf_ids to typeof(string)
+| join kind=rightanti Books on $left.rf_id == $right.rf_id  
+
+Shelves
+| mv-expand rf_id = rf_ids to typeof(string)
+| lookup Books on rf_id 
+| summarize sum(weight_gram) by shelf, total_weight
+| extend diff= total_weight - sum_weight_gram
+| order by diff desc
+| where diff >= 1764

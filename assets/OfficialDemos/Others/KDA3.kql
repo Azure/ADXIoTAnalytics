@@ -1,0 +1,181 @@
+﻿// The Captain
+
+
+.drop table Votes ifexists 
+
+.execute database script <|
+// Ingestion may take ~40sec to complete, total 5M+ records
+.create-merge table Votes (Timestamp:datetime, vote:string, via_ip:string, voter_hash_id:string)
+.ingest into table Votes (@'https://kustodetectiveagency.blob.core.windows.net/digitown-votes/votes_1.csv.gz')
+.ingest into table Votes (@'https://kustodetectiveagency.blob.core.windows.net/digitown-votes/votes_2.csv.gz')
+.ingest into table Votes (@'https://kustodetectiveagency.blob.core.windows.net/digitown-votes/votes_3.csv.gz')
+
+// Query that counts the votes:
+Votes
+| summarize Count=count() by vote
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(Count)) 
+| extend vote, Percentage = round(Count*100.0 / Total, 1), Count
+| order by Count
+
+Votes
+| summarize Count=count() by vote
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(Count)) 
+| project vote, Percentage = round(Count*100.0 / Total, 1)
+
+
+Votes 
+| summarize count() by via_ip 
+| order by count_ desc
+
+
+Votes
+| where via_ip == '10.168.36.21'
+| make-series count() on Timestamp step 1m by vote
+| extend an=series_decompose_anomalies(count_)
+| render anomalychart with(anomalycolumns=an)
+
+
+Votes 
+| summarize count() by via_ip 
+| order by count_  asc 
+
+Votes
+| where via_ip == '10.168.39.43'
+| summarize count() by voter_hash_id
+
+
+
+
+// hints 1-3
+// Votes are submitted from different city regions using local proxy-servers, 
+// which are represented in the data by 'via_ip' column.
+// Are there any anomalies if you compare one server votes to another?
+
+// Assuming Poppy the fish is very popular, 
+// it would be very strange if some regions show very low support numbers, don't you think?
+
+// What about voting times for a specific server 
+// and a specific candidate? Any anomaly can be observed there?
+
+
+Votes
+| take 10
+
+
+Votes
+| where via_ip == '10.168.16.139'
+| summarize Count=count() by vote
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(Count)) 
+| extend vote, Percentage = round(Count*100.0 / Total, 1), Count
+| order by Count
+
+Votes
+| where via_ip == '10.168.39.43'
+| summarize count() by vote
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(count_))
+
+
+Votes
+| summarize Count=count() by via_ip
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(Count)) 
+| extend via_ip, Percentage=todecimal((Count/Total)*0.01), Count
+| order by Count desc 
+| where Count ==496
+
+// how long does each hash spend on a vote?
+Votes
+| where via_ip == '10.168.39.43'
+| summarize Count=count() by Timestamp
+
+Votes 
+| where via_ip =='10.168.33.127' //10.168.39.43
+| sort by via_ip, Timestamp
+| extend x = next(Timestamp,1,0)
+| extend diff = datetime_diff('millisecond', Timestamp, x)
+| where diff > 1000
+
+
+
+
+
+Votes 
+| sort by Timestamp
+| extend x = prev(Timestamp,1)
+| extend diff = datetime_diff('microsecond', Timestamp, x)
+
+
+
+Votes 
+| summarize max(strlen((tostring(Timestamp))))
+
+Votes 
+| where strlen((tostring(Timestamp))) ==28
+| take 1
+
+
+Votes 
+// | where via_ip =='10.168.33.127' //10.168.39.43
+| sort by via_ip,Timestamp
+| extend x = next(Timestamp,1,0)
+| extend diff = datetime_diff('millisecond', Timestamp, x)
+| where diff > 1000 
+| summarize Count=count() by vote
+| as hint.materialized=true T
+| extend Total = toscalar(T | summarize sum(Count)) 
+| project vote, Percentage = round(Count*100.0 / Total, 1)
+| order by Percentage
+
+// Kastor	50.6, Gaul	38.4, Willie	6.6, Poppy	4.4
+
+
+
+
+let t = materialize(
+    Votes
+    | summarize Count=count() by via_ip
+);
+t 
+| summarize avg(Count), max(Count), min(Count), percentile(Count, 50), hll(Count) ,stdev(Count), sum(Count), tdigest(Count), variance(Count)
+
+
+
+datatable(address:string, mask:long)
+[
+ '192.168.1.1', 24,
+ '192.168.1.1', 32,
+ 'bittorrent', 80,
+ '192.168.1.1/24', long(-1),
+]
+| extend result = format_ipv4(address, mask), 
+         result_mask = format_ipv4_mask(address, mask)
+
+
+print value1 = "Hello", value2 = "World"
+| extend h1 = hash(value1), h2=hash(value2)
+| extend combined = hash_combine(h1, h2)
+
+
+print x=current_principal();
+
+
+
+let IsPerson ='aaduser=e10fcc43-9abd-4aad-af2d-b6bb7d9e18eb;';
+//let IsApp = current_principal()=='aadapp=cb8017c4-29fc-485e-badd-97bc426741d5;33e01921-4d64-4f8c-a055-5bdaffd5e33d';
+let RLS = IsPerson;
+let AllData = Perf 
+    | where TimeGenerated >=ago(1h)
+    | where isnull(IsApp)==1
+    | distinct Computer;
+let PartialData = Perf 
+    | where TimeGenerated >=ago(1h)
+    // | where isnull(IsApp)==0
+    | distinct Computer
+    | extend Computer=iff(isnull(IsApp)==1, Computer, "****") // tostring(hash(Computer)))
+    | distinct Computer; // = "****";
+union PartialData, AllData 
+| distinct  Computer

@@ -1,0 +1,35 @@
+﻿////////////////////
+// The Lieutenant //
+////////////////////
+
+// create free cluster and db at https://aka.ms/free
+
+// sum values in the Score column
+
+.drop table Onboarding ifexists 
+
+.execute database script <|
+// Create table for the data
+.create-merge table Onboarding(Score:long)
+// Import data
+.ingest into table Onboarding 
+    ('https://kustodetectiveagency.blob.core.windows.net/onboarding/onboarding.csv.gz') 
+    with (ignoreFirstRecord=true)
+
+
+Onboarding
+| summarize sum(Score), avg(Score), min(Score), max(Score), stdev(Score)
+
+Onboarding
+| where Score == 0.0000112
+| count
+
+Onboarding 
+| summarize count(Score) by Score
+// | summarize max(count_Score)
+| where count_Score >= 23
+| take 100
+
+Onboarding
+| summarize take_any(Score), max(Score), min(Score), percentile(Score, 55), hll(Score) ,stdev(Score),
+ sum(Score), tdigest(Score), variance(Score)
