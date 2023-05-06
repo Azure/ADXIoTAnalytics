@@ -1,0 +1,70 @@
+﻿#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Commander
+
+// We have a situation, rookie.
+// As you may have heard from the news, there was a bank robbery earlier today.
+// In short: the good old downtown bank located at 157th Ave / 148th Street has been robbed.
+// The police were too late to arrive and missed the gang, and now they have turned to us to help locating the gang.
+// No doubt the service we provided to the mayor Mrs. Gaia Budskott in past - helped landing this case on our table now.
+
+// Here is a precise order of events:
+
+// 08:17AM: A gang of three armed men enter a bank located at 157th Ave / 148th Street and start collecting the money from the clerks.
+// 08:31AM: After collecting a decent loot (est. 1,000,000$ in cash), they pack up and get out.
+// 08:40AM: Police arrives at the crime scene, just to find out that it is too late, and the gang is not near the bank. The city is sealed - all vehicles are checked, robbers can't escape. Witnesses tell about a group of three men splitting into three different cars and driving away.
+// 11:10AM: After 2.5 hours of unsuccessful attempts to look around, the police decide to turn to us, so we can help in finding where the gang is hiding.
+
+// Police gave us a data set of cameras recordings of all vehicles and their movements from 08:00AM till 11:00AM. Find it below.
+
+.drop table Traffic ifexists; 
+ 
+.execute database script <|
+// Create the table with the traffic information.
+// The data loading process estimated to take ~3-4min to complete (114M+ rows of data).
+// Notes: VIN - is Vehicle ID 
+.create-merge table Traffic (Timestamp:datetime, VIN:string, Ave:int, Street:int)
+.ingest async into table Traffic (@'https://kustodetectiveagency.blob.core.windows.net/digitown-traffic/log_00000.csv.gz')
+.ingest async into table Traffic (@'https://kustodetectiveagency.blob.core.windows.net/digitown-traffic/log_00001.csv.gz')
+.ingest async into table Traffic (@'https://kustodetectiveagency.blob.core.windows.net/digitown-traffic/log_00002.csv.gz')
+
+.show operations | where StartedOn > ago(10m) and Duration > 1m 
+
+Traffic | count //114,736,694
+
+// HINTS
+// The data is captured by cameras for moving vehicles, and it includes: Timestamp, the Vehicle plate (VIN), and the location of the camera on the (Ave/Street) grid.
+// The bank is located in the center of the city – lots of traffic in the morning. However, we can be certain that the cars that gang used – were not moving during the robbery. Perhaps this can help in reducing the list of suspects?
+// If the gang split into several cars, perhaps they still had an agreed place where all of them will reunion to divide the loot?
+
+Traffic
+| take 10 
+
+Traffic
+| summarize min(datetime_part('day', Timestamp)), max(datetime_part('day', Timestamp))
+
+
+let a = 
+Traffic
+| where Timestamp between (datetime('10/16/22 08:31') .. datetime('10/16/22 08:40'))
+| where Ave == 157 and Street == 148 
+| distinct VIN;
+a
+| join kind=inner Traffic on $left.VIN == $right.VIN 
+| summarize arg_max(Timestamp,*) by VIN
+| sort by Timestamp desc
+| summarize count(VIN) by Ave, Street
+| order by count_VIN desc
+| where count_VIN >2
+
+.show queries;
+$command_results;
+let z = datatable (clusters:string) ['help'];
+let y = toscalar(z| take 1); 
+let x = (clusterName:string) { cluster(y) };
+x(y).database('Samples').StormEvents | take 1;
+
+
+.show tables;
+let useless=(n:string){strcat(n,'-','useless')};
+$command_results | extend LastColumn=useless(TableName)
