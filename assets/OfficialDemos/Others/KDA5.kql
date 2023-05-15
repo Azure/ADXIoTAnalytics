@@ -1,184 +1,204 @@
-﻿
+﻿// El Puente strikes again
+
+// THE BIG HEIST
+
+// Hello. It's going to happen soon: a big heist. You can stop it if you are quick enough. Find the exact place and time it's going to happen.
+// Do it right, and you will be rewarded, do it wrong, and you will miss your chance.
+
+// Here are some pieces of the information:
+// The heist team has 4 members. They are very careful, hide well with minimal interaction with the external world. 
+// Yet, they use public chat-server for their syncs. The data below was captured from the chat-server: 
+// it doesn't include messages, but still it may be useful. See what you can do to find the IPs the gang uses to communicate.
+// Once you have their IPs, use my small utility to sneak into their machine's and find more hints:
+// https://sneakinto.z13.web.core.windows.net/<ip>
+
+// Cheers
 // El Puente
 
-// grab primes
-
-https://kustodetectiveagency.blob.core.windows.net/prime-numbers/prime-numbers.csv.gz
-
-// Create table command
-////////////////////////////////////////////////////////////
-.create table ['primes']  (['num']:long)
-
-// Create mapping command
-////////////////////////////////////////////////////////////
-.create table ['primes'] ingestion csv mapping 'primes_mapping' '[{"column":"num", "Properties":{"Ordinal":"0"}}]'
-
-// Ingest data into table command
-///////////////////////////////////////////////////////////
-.ingest into table ['primes'] 
-(h'https://kustodetectiveagency.blob.core.windows.net/prime-numbers/prime-numbers.csv.gz') 
-with (
-    format='csv',
-    ingestionMappingReference='primes_mapping',
-    ingestionMappingType='csv',
-    ignoreFirstRecord=false
-    )
-
-primes
-| count
-
-//find https://aka.ms/{Largest special prime under 100M}
-
-// hint 1:
-// For finding special prime-numbers, you may look on the previous rows using prev()/next() functions. 
-// Just make sure to sort (use `sort` operator) data before using it.
-
-
-// the sum of 2 prime neighbors +1 = special, ie. 13 is special because (5 + 7 + 1)
-
-primes 
-| sort by num 
-| extend j = prev(num)
-| extend special = (num+j)+1
-| join kind = inner primes on $left.special == $right.num
-| sort by num1 
-| where num1 < 100000000
-| summarize lsp=max(num1)
-| project strcat('https://aka.ms/',lsp)
-
-// wrong
-primes 
-| sort by num 
-| extend j = prev(num)
-| extend special = (num+j)+1
-| where special == num  //this is same as join but will never be true on the same table.
-| where special < 100000000 
-| summarize lsp=max(special)
-
-
-
-// PART 2
-// Well done, my friend.
-// It's time to meet. Let's go for a virtual sTREEt tour...
-// Across the Big Apple city, there is a special place with Turkish Hazelnut and four Schubert Chokecherries within 66-meters radius area.
-// Go 'out' and look for me there, near the smallest American Linden tree (within the same area).
-// Find me and the bottom line: my key message to you.
-
-// Cheers,
-// El Puente.
-
-// PS: You know what to do with the following.
-
-----------------------------------------------------------------------------------------------
-
-.drop table nyc_trees ifexists 
+// PS:
+// Feeling uncomfortable and wondering about an elephant in the room: why would I help you?
+// Nothing escapes you, ha?
+// Let's put it this way: we live in a circus full of competition. I can use some of your help, and nothing breaks if you use mine... 
+// You see, everything is about symbiosis.
+// Anyway, what do you have to lose? Look on an illustrated past, fast forward N days and realize the future is here.
 
 .execute database script <|
-// The data below is from https://data.cityofnewyork.us/Environment/2015-Street-Tree-Census-Tree-Data/uvpi-gqnh 
-// The size of the tree can be derived using 'tree_dbh' (tree diameter) column.
-.create-merge table nyc_trees 
-       (tree_id:int, block_id:int, created_at:datetime, tree_dbh:int, stump_diam:int, 
-curb_loc:string, status:string, health:string, spc_latin:string, spc_common:string, steward:string,
-guards:string, sidewalk:string, user_type:string, problems:string, root_stone:string, root_grate:string,
-root_other:string, trunk_wire:string, trnk_light:string, trnk_other:string, brch_light:string, brch_shoe:string,
-brch_other:string, address:string, postcode:int, zip_city:string, community_board:int, borocode:int, borough:string,
-cncldist:int, st_assem:int, st_senate:int, nta:string, nta_name:string, boro_ct:string, ['state']:string,
-latitude:real, longitude:real, x_sp:real, y_sp:real, council_district:int, census_tract:int, ['bin']:int, bbl:long)
-with (docstring = "2015 NYC Tree Census")
-.ingest  into table nyc_trees ('https://kustodetectiveagency.blob.core.windows.net/el-puente/1.csv.gz')
-.ingest  into table nyc_trees ('https://kustodetectiveagency.blob.core.windows.net/el-puente/2.csv.gz')
-.ingest  into table nyc_trees ('https://kustodetectiveagency.blob.core.windows.net/el-puente/3.csv.gz')
-// Get a virtual tour link with Latitude/Longitude coordinates
-.create-or-alter function with (docstring = "Virtual tour starts here", skipvalidation = "true") VirtualTourLink(lat:real, lon:real) { 
-	print Link=strcat('https://www.google.com/maps/@', lat, ',', lon, ',4a,75y,32.0h,79.0t/data=!3m7!1e1!3m5!1s-1P!2e0!5s20191101T000000!7i16384!8i8192')
-}
-// Decrypt message helper function. Usage: print Message=Decrypt(message, key)
-.create-or-alter function with 
-  (docstring = "Use this function to decrypt messages")
-  Decrypt(_message:string, _key:string) { 
-    let S = (_key:string) {let r = array_concat(range(48, 57, 1), range(65, 92, 1), range(97, 122, 1)); 
-    toscalar(print l=r, key=to_utf8(hash_sha256(_key)) | mv-expand l to typeof(int), key to typeof(int) | order by key asc | summarize make_string(make_list(l)))};
-    let cypher1 = S(tolower(_key)); let cypher2 = S(toupper(_key)); coalesce(base64_decode_tostring(translate(cypher1, cypher2, _message)), "Failure: wrong key")
-}
+.create-merge table ChatLogs (Timestamp:datetime, Message:string)  
+.ingest into table ChatLogs ('https://kustodetectiveagency.blob.core.windows.net/digitown-chat/log_00000.csv.gz')
+.ingest into table ChatLogs ('https://kustodetectiveagency.blob.core.windows.net/digitown-chat/log_00001.csv.gz')
+
+// What is the exact place and time? Date, Longitude, Latitude
+
+// KEY:
+// There are 4 gang members planning a big heist
+// We are given only with the metadata of chat activities
+// We can hack by IP with https://sneakinto.z13.web.core.windows.net/<ip>
+
+// Gang members would like to minimize their digital footprint, so probably would not log to other channels
+// Gang members would have dedicated time to communicate, for syncs
+
+ChatLogs
+| take 10
+
+// has Timestamp, Message
+
+// A user logs in: user ID, IP address
+// A user joins channel: user ID, channel ID
+// A user sends a message: Sender User ID, Receiver User ID.
+// A user leavs channel: user ID, channel ID
+// A user logs out: user ID
+// So let's find channels that users joined only them, and not other channels
+
+// parse-where, filter messages user joins a channel, group by a user and filter those unique channels by user.
+// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/parsewhereoperator
+
+ChatLogs
+| parse-where Message with "User '" user_join "' joined the channel '" channel "'"
+| summarize user_channels = make_set(channel) by user_join
+| where array_length(user_channels) == 1
+| extend channel = tostring(user_channels[0])
+| distinct channel
+
+// count is too much
+// let's see which channels have a matching hour joining
+// group by channel where all users join at same timeBooks
+
+let user_unique_channels = ChatLogs
+| parse-where Message with "User '" user_join "' joined the channel '" channel "'"
+| summarize user_channels = make_set(channel) by user_join
+| where array_length(user_channels) == 1
+| extend channel = tostring(user_channels[0])
+| distinct channel;
+ChatLogs
+| parse-where Message with "User '" user_join "' joined the channel '" channel "'"
+| where channel in (user_unique_channels)
+| extend hour = hourofday(Timestamp)
+| summarize hours_of_joining = make_set(hour) by channel
+| where array_length(hours_of_joining) == 1
+| distinct channel
+
+// hmm 6, we're close. 
+// but we know there's 4 gang members.
+
+ChatLogs
+| parse-where Message with "User '" user "' joined the channel '" channel "'"
+| where channel in ("c404fcccc82", "cf053de3c7b", "c8b204b7871", "c6d8260e867", "c2174302b54", "c5cac5f6ae9")
+| summarize users_in_channel = count() by channel, bin(Timestamp, 1h)
+| where users_in_channel == 4
+| distinct channel
+
+// cf053de3c7b suspecious!!
+// lets get them.
+
+// ip
+let gang_members = 
+ChatLogs
+| parse-where Message with "User '" user_join "' joined the channel '" channel "'"
+| where channel == "cf053de3c7b"
+| distinct user_join;
+ChatLogs
+| parse-where Message with "User '" user_login "' logged in from '" ip "'"
+| where user_login in (gang_members)
+| distinct ip
+| order by ip asc
+| project strcat('https://sneakinto.z13.web.core.windows.net/',ip) 
 
 
-nyc_trees | count
+// 119.10.30.154
+// 146.49.19.37
+// 194.243.69.176
+// 236.48.237.42
 
-nyc_trees | take 10
+// lets hack their machines. https://sneakinto.z13.web.core.windows.net/
 
-// 20INznpGzmkmK2NlZ0JILtO4OoYhOoYUB0OrOoTl5mJ3KgXrB0[8LTSSXUYhzUY8vmkyKUYevUYrDgYNK07yaf7soC3kKgMlOtHkLt[kZEclBtkyOoYwvtJGK2YevUY[v65iLtkeLEOhvtNlBtpizoY[v65yLdOkLEOhvtNlDn5lB07lOtJIDmllzmJ4vf7soCpiLdYIK0[eK27soleqO6keDpYp2CeH5d\F\fN6aQT6aQL[aQcUaQc[aQ57aQ5[aQDG
+// Project Natick. Microsoft's Innovative Project Natick is a research project that seeks to understand the 
+// benefits and difficulties in deploying subsea data centers worldwide. 
+// This research project was created to determine the reliability of underwater data centers powered by offshore renewable energy.
 
-// Hints 
-// Geo-hashing fun fact: H3 cell with size of 10 is about 66m in radius.
-// Sometimes, catchy phrase is a key for a successful song too.
+// they're planning to hack the datacenter!!! https://sneakinto.z13.web.core.windows.net/119.10.30.154/big-data-overview.mp4
 
-nyc_trees
-| extend VirtualTourLink (lat==latitude, lon==longitude)
+// found thier utils https://sneakinto.z13.web.core.windows.net/194.243.69.176/utils.txt
 
-nyc_trees | take 1 | project latitude, longitude
+// 1) Utility to discover secondary messages.
+// Usage: ReadMessage(Message, Key)
+let ReadMessage = (Message:string, Key:string) 
+{
+    let m = Message; let K = Key; let l = toscalar(print s = split(split(K,':')[1], ',') | mv-expand s | summarize make_list(tolong(s)));
+    let ma = (i1:long, i2:long) { make_string(repeat(tolong(l[i1])-tolong(l[i2]), 1))}; 
+    let ms = (d:dynamic, s:long, e:long) { make_string(array_slice(d, s, e)) };   
+    let mc = m has '...';
+    print s=split(split(replace_regex(m, @'[\s\?]+', ' '),substring(K,9,3))[1], ' ')
+    | mv-expand with_itemindex=r s to typeof(string) | serialize 
+    | where r in (l)
+    | extend s = iif(r-1 == prev(r), replace_string(strcat(prev(s), s),'o','ou'), s)
+    | where (r+1 != next(r))
+    | summarize s=strcat_array(make_list(s), iff(mc, '+%2B', ' '))
+    | extend k = series_subtract(series_add(to_utf8(K), l), repeat(23, 10))
+    | project result=iif(mc, strcat(ms(k,0,3), ma(8,2), ms(k,4,6), ms(l,8,8), ms(k,7,7), ma(8,0), s), s)
+};
+ReadMessage(
+```
+Hi there! How are you?
 
-VirtualTourLink(40.61428332, -73.93259204)
-
-
-// I need to find 1 Turkish Hazelnut and 4 Schubert Chokecherries within an h3 cell...
-// and within the same area find the smallest American Linden
-
-
-nyc_trees
-| where spc_common has "'Schubert' chokecherry"
-| summarize arg_max(spc_common, created_at), count()
-
-nyc_trees
-// | where spc_common in ('American linden', 'Turkish hazelnut', "'Schubert' chokecherry")
-| where spc_common in ("'Schubert' chokecherry")
-| summarize c = count(),                                        
-            s = make_list(spc_common)                      
-            by h3cell = geo_point_to_h3cell(longitude, latitude, 10) 
-| where c ==4
-
-
-let a =
-nyc_trees
-| where spc_common in ('American linden', 'Turkish hazelnut')
-| summarize c = count(),                                        
-            s = make_list(spc_common)                      
-            by h3cell = geo_point_to_h3cell(longitude, latitude, 10) 
-| where c > 2 and s has 'American linden' and s has 'Turkish hazelnut'
-;
-let b = nyc_trees
-| where spc_common in ("'Schubert' chokecherry")
-| summarize c = count(),                                        
-            s = make_list(spc_common)                      
-            by h3cell = geo_point_to_h3cell(longitude, latitude, 10) 
-| where c ==4;
-a | join kind = inner  b on h3cell
-| project h3cell
+PS: 
+This is a nice utility that reveals what hidden messages the text may have.
+We may read the message and think: is there anything beyond words?
+Can we find it without the utility, or it will become too much of a headache?
+```,
+h@'dhkl4fva!that:2,9,15,22,31'
+)
 
 
-// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/geo-h3cell-to-central-point-function
-
-print h3cell = geo_h3cell_to_central_point("8a2a100dec9ffff")
-
-{"type":"Point","coordinates":["-73.964108542950413","40.712746593897954"]}
-
-nyc_trees
-| extend MyCell = geo_point_to_h3cell(longitude, latitude, 10) //you have to extend so you dont loose the other columns
-| where MyCell =='8a2a100dec9ffff'
-| order by spc_common
-| where spc_common has 'linden'
-// | summarize arg_min(tree_dbh,spc_common) //3
-| where tree_dbh == 3
-| project latitude,longitude
+// 2) Get GEO location from images:
+// Use https://tool.geoimgr.com/
 
 
+// another message with date https://sneakinto.z13.web.core.windows.net/119.10.30.154/message-project-x.png
 
-VirtualTourLink(40.71222313,-73.96452201)
+// We need 2 dates (Date1 & YYYY). 1st when picture taken and 2nd historical year from elephant illustration.
 
-let msg='20INznpGzmkmK2NlZ0JILtO4OoYhOoYUB0OrOoTl5mJ3KgXrB0[8LTSSXUYhzUY8vmkyKUYevUYrDgYNK07yaf7soC3kKgMlOtHkLt[kZEclBtkyOoYwvtJGK2YevUY[v65iLtkeLEOhvtNlBtpizoY[v65yLdOkLEOhvtNlDn5lB07lOtJIDmllzmJ4vf7soCpiLdYIK0[eK27soleqO6keDpYp2CeH5d\\F\\fN6aQT6aQL[aQcUaQc[aQ57aQ5[aQDG';
-print meaning=Decrypt(msg, 'ASHES to ASHES');
+// marked pdf page 3 on 2022-10-01 22:38:19 https://sneakinto.z13.web.core.windows.net/236.48.237.42/project-x.pdf
+// see date taken 7/9/2020 1:58pm in file property details https://sneakinto.z13.web.core.windows.net/146.49.19.37/image3.jpg, 
 
-//Impressive, you got it right! Something BIG is going to happen...
-Keep the next hint close to you, it will help you. We will be in touch soon.
-El Puente.
+// 1) Utility to discover secondary messages.
+// Usage: ReadMessage(Message, Key)
+let ReadMessage = (Message:string, Key:string) 
+{
+    let m = Message; let K = Key; let l = toscalar(print s = split(split(K,':')[1], ',') | mv-expand s | summarize make_list(tolong(s)));
+    let ma = (i1:long, i2:long) { make_string(repeat(tolong(l[i1])-tolong(l[i2]), 1))}; 
+    let ms = (d:dynamic, s:long, e:long) { make_string(array_slice(d, s, e)) };   
+    let mc = m has '...';
+    print s=split(split(replace_regex(m, @'[\s\?]+', ' '),substring(K,9,3))[1], ' ')
+    | mv-expand with_itemindex=r s to typeof(string) | serialize 
+    | where r in (l)
+    | extend s = iif(r-1 == prev(r), replace_string(strcat(prev(s), s),'o','ou'), s)
+    | where (r+1 != next(r))
+    | summarize s=strcat_array(make_list(s), iff(mc, '+%2B', ' '))
+    | extend k = series_subtract(series_add(to_utf8(K), l), repeat(23, 10))
+    | project result=iif(mc, strcat(ms(k,0,3), ma(8,2), ms(k,4,6), ms(l,8,8), ms(k,7,7), ma(8,0), s), s)
+};
+// bing.com?q=uncomfortable+%2Belephant+%2Bescapes+%2Bcircus+%2Bbreaks+%2Beverything+%2Btoulouse+%2Billustrated
+ReadMessage(
+Message=
+```
+PS:
+Feeling uncomfortable and wondering about an elephant in the room: why would I help you?
+Nothing escapes you, ha?
+Let"s put it this way: we live in a circus full of competition. I can use some of your help, and nothing breaks if you use mine... You see, everything is about symbiosis.
+Anyway, what do you have to lose? Look on an illustrated past, fast forward N days and realize the future is here.
+)
+```,
+Key="wytaPUJM!PS:2,7,17,29,42,49,58,59,63");
 
-wytaPUJM!PS:2,7,17,29,42,49,58,59,63
+// Nov 14, 1891
+
+
+let Date1 = datetime(2020-07-09 13:58);
+let YYYY  = 1891;
+print (Date1 + ((YYYY % 1000) * 1d))
+// datetime(2022-12-17 13:58:00.0000000)
+
+// We know when, but where?
+// We need to find the place of the heist, lets try https://tool.geoimgr.com/
+
+// 58.9688665166667,-3.38010413333333
