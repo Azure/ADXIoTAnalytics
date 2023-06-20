@@ -4,6 +4,8 @@
 
 #connect cluster('adxpm10774.eastus').database('IoTAnalytics')
 
+.show database IoTAnalytics principals
+
 .add database IoTAnalytics users ('msauser=hiramfleitas@hotmail.com') 'hiramfleitas@hotmail.com'
 
 .drop database IoTAnalytics users ('msauser=hiramfleitas@hotmail.com') 
