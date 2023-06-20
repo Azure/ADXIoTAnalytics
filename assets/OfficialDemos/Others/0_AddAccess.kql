@@ -15,6 +15,15 @@
 .drop database IoTAnalytics viewers ('msauser=hiramfleitas@hotmail.com') 
 
 
+.add database MyDatabase viewers ('aaduser=janedoe@fabrikam.com') 'janedoe@fabrikam.com'
+
+.show database MyDatabase principals
+
+.show journal | where * has 'janedoe'
+
+
+.add table survival ingestors ('aadapp=00000000-1111-2222-1111-0x000x0x000x;fabrikam.onmicrosoft.com')
+
 // Ref: 
 // https://docs.microsoft.com/azure/data-explorer/kusto/management/security-roles#arguments
 // https://docs.microsoft.com/azure/data-explorer/kusto/management/access-control/principals-and-identity-providers
