@@ -9,10 +9,10 @@
 // Overlay 2 graph types //
 ///////////////////////////
 
-// 1. dashboard (https://aka.ms/adx.uservoice)
-// 2. kql magic notebooks/plotly (maybe) ref: https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
+// 1. dashboard (https://aka.ms/uservoice > submit/upvote to priotize)
+// 2. plotly https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
 // 3. ysplit=panels
-// 4. treemap (https://aka.ms/ke)
+// 4. treemap (maybe...)
 
 // series_decompose - manifest periodic and trend behaviour.
 // uses series_outliers uses Tukey's fence test. >1.5 or <-1.5 is mild, >3.0 or <-3.0 is strong score.
@@ -25,7 +25,8 @@ demo_make_series2
 | extend (baseline, seasonal, trend, residual) = series_decompose(num, -1, 'linefit')  
 | render timechart with(title='Web app. traffic of a month, decomposition', ysplit=panels)
 
-// https://learn.microsoft.com/azure/data-explorer/kusto/query/visualization-treemap
+
+//KE Desktop App
 StormEvents
 | summarize StormEvents=count() by EventType, State
 | sort by StormEvents
@@ -54,8 +55,59 @@ datatable (GBs:int, label:string)[
 | render columnchart  with(xcolumn=label, ycolumns=GBs)
 
 // 3. unit in value
-datatable (num:int, size:string)[
+datatable (num:int, size:string, tname:string)[
 1024, ' GB',
 200, ' GB'
 ] 
 | render barchart  with(xcolumn=size, ycolumns=num)
+
+
+
+
+#connect cluster("demo12.westus").database("Datasets")
+
+// compare nyc taxi trend with app based rides (uber, lyft, etc)
+// union of two large tables; 1.5B rows and 500M rows
+union withsource=T Trips, FHV_Trips
+| where pickup_datetime between (datetime(2009-01-01) .. datetime(2018-07-01))
+| summarize count() by T, bin(pickup_datetime, 7d)
+| render timechart
+
+
+
+// more timeseries samples: 
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/time-series-analysis
+// https://github.com/Azure/ADXIoTAnalytics/blob/main/assets/OfficialDemos/Others/Time_Series.kql
+
+
+#connect cluster('help.kusto.windows.net').database('Samples')
+
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp from min_t to max_t step 1h by OsVer
+| render timechart
+
+//click table, grab sample value for x-axis vertical line value.
+// but this is only 1 instance, what if you need to plot multiple events & dynamically from the data?
+
+
+let releases = datatable (TimeStamp:datetime, note:string, metric:int) [
+datetime(2016-08-21T21:01:35.206Z), 'hello world', 3000,
+datetime(2016-09-01T10:03:31.586Z), 'app 1.0', 3000
+];
+demo_make_series1
+| lookup releases on TimeStamp
+| make-series num=count() , m=sum(metric) on TimeStamp step 1h by OsVer, note
+| render timechart 
+
+
+
+let releases = datatable (TimeStamp:datetime, note:double, metric:int) [
+datetime(2016-08-21T21:01:35.206Z), 1.2, 3000,
+datetime(2016-09-01T10:03:31.586Z), 2.3, 3000
+];
+demo_make_series1
+| lookup releases on TimeStamp
+| make-series num=count() , m=sum(metric) on TimeStamp step 1h by OsVer, note
+| render timechart 
