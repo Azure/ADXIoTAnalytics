@@ -1,0 +1,54 @@
+#connect cluster('help.kusto').database('Samples')
+
+// Ask:
+// 1. Any plans for more sophisticated graphs? Overlay 2 graph types on top of each other.
+// 2. Be able to specify custom string for value in graph(e.g. use format_bytes on data so that the graph shows GB number instead of the byte number)
+
+
+///////////////////////////
+// Overlay 2 graph types //
+///////////////////////////
+
+// 1. dashboard
+// 2. plotly https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
+// 3. ysplit=panels
+
+// series_decompose - manifest periodic and trend behaviour.
+// uses series_outliers uses Tukey's fence test. >1.5 or <-1.5 is mild, >3.0 or <-3.0 is strong score.
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t step dt by sid 
+| where sid == 'TS1'
+| extend (baseline, seasonal, trend, residual) = series_decompose(num, -1, 'linefit')  
+| render timechart with(title='Web app. traffic of a month, decomposition', ysplit=panels)
+
+
+
+/////////////////////////
+// Graph Custom String //
+/////////////////////////
+
+
+// 1. format_bytes & split
+.show table Trips extents 
+| summarize size=format_bytes(sum(OriginalSize),0,'GB'), compressed=format_bytes(sum(CompressedSize),0,'GB') by TableName
+| extend split(size,' '), split(compressed,' ')
+| extend snum=toint(size[0]), unit=tostring(size[1])
+| render barchart with(xcolumn=TableName, ycolumns=snum)
+
+
+// 2. unit in hearder
+datatable (GBs:int, label:string)[
+1, ' server1',
+200, ' server2'
+] 
+| render columnchart  with(xcolumn=label, ycolumns=GBs)
+
+// 3. unit in value
+datatable (num:int, size:string)[
+1024, ' GB',
+200, ' GB'
+] 
+| render barchart  with(xcolumn=size, ycolumns=num)
