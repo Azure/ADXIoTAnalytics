@@ -1,4 +1,4 @@
-#connect cluster('help.kusto').database('Samples')
+#connect cluster('help.kusto.windows.net').database('Samples')
 
 // Ask:
 // 1. Any plans for more sophisticated graphs? Overlay 2 graph types on top of each other.
@@ -9,9 +9,10 @@
 // Overlay 2 graph types //
 ///////////////////////////
 
-// 1. dashboard
-// 2. plotly https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
+// 1. dashboard (https://aka.ms/adx.uservoice)
+// 2. notebooks/plotly (maybe) ref: https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
 // 3. ysplit=panels
+// 4. treemap (https://aka.ms/ke)
 
 // series_decompose - manifest periodic and trend behaviour.
 // uses series_outliers uses Tukey's fence test. >1.5 or <-1.5 is mild, >3.0 or <-3.0 is strong score.
@@ -24,6 +25,12 @@ demo_make_series2
 | extend (baseline, seasonal, trend, residual) = series_decompose(num, -1, 'linefit')  
 | render timechart with(title='Web app. traffic of a month, decomposition', ysplit=panels)
 
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/visualization-treemap
+StormEvents
+| summarize StormEvents=count() by EventType, State
+| sort by StormEvents
+| limit 30
+| render treemap with(title="Storm Events by EventType and State")
 
 
 /////////////////////////
