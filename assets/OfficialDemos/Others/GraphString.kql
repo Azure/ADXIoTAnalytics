@@ -10,7 +10,7 @@
 ///////////////////////////
 
 // 1. dashboard (https://aka.ms/adx.uservoice)
-// 2. notebooks/plotly (maybe) ref: https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
+// 2. kql magic notebooks/plotly (maybe) ref: https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
 // 3. ysplit=panels
 // 4. treemap (https://aka.ms/ke)
 
