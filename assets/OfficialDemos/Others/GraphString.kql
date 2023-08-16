@@ -9,10 +9,10 @@
 // Overlay 2 graph types //
 ///////////////////////////
 
-// 1. dashboard (https://aka.ms/uservoice > submit/upvote to priotize)
-// 2. plotly https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
+// 1. dashboard (https://aka.ms/adx.uservoice > submit/upvote to priotize)
+// 2. kql magic notebooks/plotly (maybe) ref: https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/plotly-visualizations-in-azure-data-explorer/ba-p/3717768
 // 3. ysplit=panels
-// 4. treemap (maybe...)
+// 4. treemap (https://aka.ms/ke)
 
 // series_decompose - manifest periodic and trend behaviour.
 // uses series_outliers uses Tukey's fence test. >1.5 or <-1.5 is mild, >3.0 or <-3.0 is strong score.
@@ -91,7 +91,7 @@ datatable (GBs:int, label:string)[
 | render columnchart  with(xcolumn=label, ycolumns=GBs)
 
 // 3. unit in value
-datatable (num:int, size:string, tname:string)[
+datatable (num:int, size:string)[
 1024, ' GB',
 200, ' GB'
 ] 
