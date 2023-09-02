@@ -1,0 +1,133 @@
+// Advise enablings diags and using Cluster Insights
+// https://techcommunity.microsoft.com/t5/azure-data-explorer-blog/monitor-batching-ingestion-with-adx-insights/ba-p/2673509
+
+// Optionally: https://aka.ms/ke > Menu see Cluster Diags
+
+// Cluster Diagnostics
+.show diagnostics 
+| extend Passed= (IsHealthy) and not(IsScaleOutRequired)
+| extend Summary = strcat('Cluster is ', iif(Passed, '', 'NOT '), 'healthy.'),
+         Details=bag_pack('MachinesTotal', MachinesTotal, 'DiskCacheCapacity', round(ClusterDataCapacityFactor,1))
+| project Action = 'Cluster Diagnostics', Category='Info', Summary, Details;
+
+// Permission check
+.show principal roles 
+| where Role in ('Admin', 'Monitor')
+| summarize DBs=count(), Details=make_list(Scope)
+| extend Summary = iif(DBs > 0, strcat('Diagnose will examine usage of ', DBs, ' database(s).'), 'User does not have permissions to get detailed diagnostics information: requires Monitor or Admin rights.')
+| project Action = 'Permission check', Category='Authorization', Summary, Details;
+
+// CPU utilization by workload type
+.show commands-and-queries
+| where StartedOn > ago(24h) 
+| as UsageData
+// Totals
+| summarize TotalCpu=sum(TotalCpu)
+// Calculate top-5 principals
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User | top 5 by TotalCpu | extend user_tuple = bag_pack('Principal', User, 'CPU', TotalCpu, 'Count', Count))
+// Top-10 heaviest queries-or-commands
+| union (UsageData | top 10 by TotalCpu | project query_cpu_tuple = bag_pack('CommandType', CommandType, 'ClientActivityId', ClientActivityId, 'TotalCpu', TotalCpu, 'Principal', Principal, 'MemoryPeak', MemoryPeak))
+// Group-by operation type
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by CommandType | as hint.materialized=true Operations | extend operation_cpu_tuple = bag_pack('CommandType', CommandType, 'CPU', TotalCpu, 'Count', Count))
+| summarize TotalCpu=sum(TotalCpu), Top5Consumers=make_list(user_tuple), 
+            Top10Queries = make_list(query_cpu_tuple), Operations=make_list(operation_cpu_tuple)
+| extend TopOperationConsumer = toscalar(Operations | top 3 by TotalCpu | project op=strcat(CommandType, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h') | summarize array_strcat(make_list(op), '\n')) 
+| project Summary = strcat('CPU consumed past 24h: ', round(TotalCpu/1h, 1), ' hours.\n'
+                    'Top 3 consumers:\n', TopOperationConsumer),
+         Details=bag_pack('Operations', Operations, 'Top5Consumers', Top5Consumers, 'Top10Queries', Top10Queries)
+| project Action = 'CPU utilization by workload type', Category='CPU', Summary, Details;
+
+// CPU utilization (commands)
+.show commands
+| where StartedOn > ago(24h) 
+| extend MemoryPeak = tolong(ResourcesUtilization['MemoryPeak'])
+| as UsageData
+// Totals
+| summarize TotalCpu=sum(TotalCpu)
+// Calculate top-5 principals
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu), Operations=make_set(CommandType) by User | top 5 by TotalCpu | as hint.materialized=true Principals | extend user_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count, 'Operations', Operations))
+// Top-10 heaviest commands
+| union (UsageData | top 10 by TotalCpu | project query_cpu_tuple = bag_pack('CommandType', CommandType, 'ClientActivityId', ClientActivityId, 'TotalCpu', TotalCpu, 'Principal', Principal, 'MemoryPeak', MemoryPeak))
+// Group-by operation type
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by CommandType | as hint.materialized=true Operations | extend operation_cpu_tuple = bag_pack('CommandType', CommandType, 'CPU', TotalCpu, 'Count', Count))
+| summarize TotalCpu=sum(TotalCpu), Top5Consumers=make_list(user_tuple), 
+            Top10Commands = make_list(query_cpu_tuple), Operations=make_list(operation_cpu_tuple)
+| extend TopOperationConsumer = toscalar(Operations | top 3 by TotalCpu | project op=strcat(CommandType, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h') | summarize array_strcat(make_list(op), '\n'))
+| extend TopUserConsumer = toscalar(Principals | top 3 by TotalCpu | project op=strcat(User, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h') | summarize array_strcat(make_list(op), '\n'))
+| project Summary = strcat('CPU consumed by commands past 24h: ', round(TotalCpu/1h, 1), ' hours.\n'
+                    'Top 3 operations:\n', TopOperationConsumer, '\n',
+                    'Top 3 principals:\n', TopUserConsumer, '\n'),
+         Details=pack('Operations', Operations, 'Top5Consumers', Top5Consumers, 'Top10Commands', Top10Commands)
+| project Action = 'CPU utilization (commands)', Category='CPU', Summary, Details;
+
+// CPU utilization (queries)
+.show queries
+| where StartedOn > ago(24h) 
+| as UsageData
+// Totals
+| summarize TotalCpu=sum(TotalCpu)
+// Calculate top-5 principals
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User | top 5 by TotalCpu | as hint.materialized=true Principals | extend user_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count))
+// Top-10 heaviest commands
+| union (UsageData | top 10 by TotalCpu | project query_cpu_tuple = bag_pack('ClientActivityId', ClientActivityId, 'TotalCpu', TotalCpu, 'Principal', coalesce(User, Principal), 'MemoryPeak', MemoryPeak))
+| summarize TotalCpu=sum(TotalCpu), Top5Consumers=make_list(user_tuple), 
+            Top10Queries = make_list(query_cpu_tuple)
+| extend TopUserConsumer = toscalar(Principals | top 3 by TotalCpu | project op=strcat(User, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h') | summarize array_strcat(make_list(op), '\n'))
+| project Summary = strcat('CPU consumed by queries past 24h: ', round(TotalCpu/1h, 1), ' hours.\n'
+                    'Top 3 principals:\n', TopUserConsumer, '\n'),
+         Details=pack('Top5Consumers', Top5Consumers, 'Top10Queries', Top10Queries)
+| project Action = 'CPU utilization (queries)', Category='CPU', Summary, Details;
+
+// Concurrency of commands
+.show commands
+| where StartedOn > ago(24h) 
+| extend User=coalesce(User, Principal)
+| as UsageData
+// Totals
+| summarize Total=count()
+// Calculate top-5 principals by count
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User, CommandType | top 5 by Count | as hint.materialized=true Principals | extend user_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count, 'CommandType', CommandType))
+// Detect spikes
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User, CommandType, bin(StartedOn, 1min) | top 10 by Count | as hint.materialized=true Spikes | extend spike_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count, 'StartedOn', StartedOn, 'CommandType', CommandType))
+| summarize Total=sum(Total), Top5Consumers=make_list(user_tuple), 
+            Top10Spikes = make_list(spike_tuple)
+| extend TopUserConsumer = toscalar(Principals | top 3 by TotalCpu | project op=strcat(User, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h CPU-time') | summarize array_strcat(make_list(op), '\n'))
+| extend TopSpikes = toscalar(Spikes | top 3 by Count | project op=strcat(User, ' (', Count, ' ', CommandType, ') at ', format_datetime(StartedOn, 'yyyy-MM-dd HH:mm')) | summarize array_strcat(make_list(op), '\n'))
+| project Summary = strcat('Commands run past 24 hours: ', Total, '.\n',
+                    'Top 3 principals by count of commands:\n', TopUserConsumer, '\n',
+                    'Top 3 command spikes (1min buckets):\n', TopSpikes),
+         Details=pack('Top5Consumers', Top5Consumers, 'Top10Spikes', Top10Spikes)
+| project Action = 'Concurrency of commands', Category='Concurrency', Summary, Details;
+
+// Concurrency of queries
+.show queries
+| where StartedOn > ago(24h) 
+| extend User=coalesce(User, Principal)
+| as UsageData
+// Totals
+| summarize Total=count()
+// Calculate top-5 principals by count
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User | top 5 by Count | as hint.materialized=true Principals | extend user_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count))
+// Detect spikes
+| union (UsageData | summarize Count=count(), TotalCpu=sum(TotalCpu) by User, bin(StartedOn, 1min) | top 10 by Count | as hint.materialized=true Spikes | extend spike_tuple = bag_pack('User', User, 'CPU', TotalCpu, 'Count', Count, 'StartedOn', StartedOn))
+| summarize Total=sum(Total), Top5Consumers=make_list(user_tuple), 
+            Top10Spikes = make_list(spike_tuple)
+| extend TopUserConsumer = toscalar(Principals | top 3 by TotalCpu | project op=strcat(User, ' (', Count, '): ', round(TotalCpu/1h, 1), 'h CPU-time') | summarize array_strcat(make_list(op), '\n'))
+| extend TopSpikes = toscalar(Spikes | top 3 by Count | project op=strcat(User, ' (', Count, ') at ', format_datetime(StartedOn, 'yyyy-MM-dd HH:mm')) | summarize array_strcat(make_list(op), '\n')) 
+| project Summary = strcat('Queries run past 24 hours: ', Total, '.\n',
+                    'Top 3 principals by count of queries:\n', TopUserConsumer, '\n',
+                    'Top 3 query spikes (1min buckets):\n', TopSpikes),
+         Details=pack('Top5Consumers', Top5Consumers, 'Top10Spikes', Top10Spikes)  
+| project Action = 'Concurrency of queries', Category='Concurrency', Summary, Details;
+
+// Ingestion failures
+.show ingestion failures
+| where FailedOn > ago(1d)
+| where FailureKind == 'Permanent'
+| as T
+| summarize FailedOperations=dcount(OperationId) by ErrorCode
+| extend tuple = bag_pack(ErrorCode, FailedOperations)
+| union (T | summarize TotalFailures = dcount(OperationId))
+| summarize TotalFailures=sum(TotalFailures), Failures=make_dictionary(tuple) 
+| project Summary=strcat('Failed ingestions past 24h: ', TotalFailures), Details=Failures
+| project Action = 'Ingestion failures', Category='Ingestion', Summary, Details;
