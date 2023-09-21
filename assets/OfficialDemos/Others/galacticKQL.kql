@@ -1,0 +1,21 @@
+﻿// inline connect to remote database
+#connect cluster('help').database('Samples')
+
+
+// this is a kql query
+demo_make_series1
+| where TimeStamp between ( datetime(2016-08-21) .. datetime(2016-08-28) )
+| summarize count() by bin(TimeStamp, 1h)
+| render timechart 
+
+
+// 1st method
+let events = datatable (TimeStamp:datetime, line:int) [
+datetime(2016-08-21T21:01:35.206Z), 4000, 
+datetime(2016-08-25T19:59:54.138Z), 4000 
+];
+demo_make_series1
+| where TimeStamp between ( datetime(2016-08-21) .. datetime(2016-08-28) )
+| lookup events on TimeStamp
+| summarize count(), sum(line) by bin(TimeStamp,1h) 
+| render timechart
