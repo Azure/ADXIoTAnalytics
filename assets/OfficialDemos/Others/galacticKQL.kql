@@ -1,4 +1,4 @@
-﻿// inline connect to remote database
+// inline connect to remote database
 #connect cluster('help').database('Samples')
 
 
@@ -18,4 +18,21 @@ demo_make_series1
 | where TimeStamp between ( datetime(2016-08-21) .. datetime(2016-08-28) )
 | lookup events on TimeStamp
 | summarize count(), sum(line) by bin(TimeStamp,1h) 
+| render timechart
+
+
+// 3rd method. set line max dynamically & append events so they always appear
+let events = datatable (TimeStamp:datetime, Event:string) [
+datetime(2016-08-21T21:01:35.206Z), "EventA",
+datetime(2016-08-25T19:59:54.138Z), "EventB"
+];
+let results = demo_make_series1
+| where TimeStamp between (datetime(2016-08-21) .. datetime(2016-08-28))
+| summarize values=count() by bin(TimeStamp, 1h);
+let maxValue = toscalar(results | summarize max(values));
+events
+| extend values=todynamic(strcat("[0,", maxValue, "]"))
+| mv-expand values to typeof(int)
+| project TimeStamp, Event, values
+| union (results)
 | render timechart
