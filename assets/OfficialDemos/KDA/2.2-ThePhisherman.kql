@@ -23,12 +23,43 @@ PhoneCalls
 | mv-expand Properties
 | take 10
 
+
+PhoneCalls 
+| where EventType == 'Connect' 
+| extend Origin=tostring(Properties.Origin), Destination=tostring(Properties.Destination), Hidden=tobool(Properties.IsHidden) 
+| take 10
+
+// drill-in ie. non hidden
+PhoneCalls 
+| where EventType == 'Connect' 
+| where tobool(Properties.IsHidden) == false or Properties !has 'IsHidden'
+| summarize Count=count() by Phone=tostring(Properties.Origin) 
+| top 1 by Count
+
+// avg & percentile
+PhoneCalls 
+| where EventType =='Connect' 
+| summarize calls=count() by bin(Timestamp, 1h) 
+| summarize avg(calls), percentile(calls, 50)
+
+//join
+PhoneCalls 
+| where EventType == 'Connect'
+| where Properties.Destination == '06309267053' 
+| join kind=inner
+    (PhoneCalls
+    | where EventType == 'Disconnect'
+    | extend DisconnectProperties = Properties) 
+    on CallConnectionId 
+| where DisconnectProperties.DisconnectedBy == 'Destination'
+| count
+
 //hidden, for disconnected by destination - who initiated?
-//Distinct Origin that called to the most & disconnected @ Destination?
+//Origin number that called to the most disconnected distinct Destination?
 //https://learn.microsoft.com/azure/data-explorer/kusto/query/dcount-aggfunction
 
 
-let hungup = PhoneCalls
+let spamm = PhoneCalls
     | where EventType == 'Disconnect'
     | extend tostring(Properties.DisconnectedBy)
     | where Properties_DisconnectedBy == 'Destination';
@@ -38,7 +69,7 @@ PhoneCalls
 | extend dest=tostring(Properties.Destination)
 | extend hidden=tobool(Properties.IsHidden)
 | where hidden
-| join kind=inner hungup on CallConnectionId 
+| join kind=inner spamm on CallConnectionId 
 | summarize dcount(dest) by org
 | top 20000 by dcount_dest desc
 | render columnchart
