@@ -1,0 +1,147 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// stolen cars!
+
+.execute database script <|
+// It takes about 1min to script to complete loading the data
+.set-or-replace StolenCars <|
+datatable(VIN:string)
+   ['LG232761G','SA732295L','MW406687Q','PR843817F','EL438126P',
+    'GA871473A','IR177866Y','LP489241B','AS483204L','DO255727O',
+    'BV850698T','YZ347238C','NJ586451R','VB724416I','SI241398E',
+    'IN149152E','PV340883B','CK552050Z','ZJ786806D','KU388194T']
+.create-merge table CarsTraffic(Timestamp:datetime, VIN:string, Ave:int, Street:int)
+//clear any previously ingested data if such exists
+.clear table CarsTraffic data
+.ingest async into table CarsTraffic(@'https://kustodetectiveagency.blob.core.windows.net/kda2c3cartraffic/log_00000.csv.gz')
+.ingest async into table CarsTraffic(@'https://kustodetectiveagency.blob.core.windows.net/kda2c3cartraffic/log_00001.csv.gz')
+.ingest into table CarsTraffic(@'https://kustodetectiveagency.blob.core.windows.net/kda2c3cartraffic/log_00002.csv.gz')
+
+
+//stored in same location!
+
+// count of list
+CarsTraffic 
+| where VIN in ('FD655964S', 'JO132865F', 'AD701526K') 
+| count
+
+//top stolen by Sightings
+CarsTraffic 
+| where VIN in (StolenCars) 
+| summarize Sightings=count() by VIN 
+| top 1 by Sightings
+
+//first & last spoted at intersection
+CarsTraffic 
+| where Street == 180 and Ave == 121 
+| summarize First=arg_min(Timestamp, VIN), Last=arg_max(Timestamp, VIN)
+
+//which street&ave a stolen first sighted?
+CarsTraffic 
+| where VIN == 'IR177866Y' 
+| summarize First=arg_min(Timestamp, Street, Ave)
+
+//join on multiple columns
+//cars at the same locaiton at morning & evenings
+CarsTraffic
+| where Timestamp between (datetime(2023-06-14 08:00) .. 1h)
+| join kind = inner (
+    CarsTraffic
+    | where Timestamp between (datetime(2023-06-14 20:00) .. 1h)
+    ) on VIN, Street, Ave
+| summarize dcount(VIN)
+
+
+//left-anti, ie. filter out cars sighted at one place but not another.
+CarsTraffic 
+| where Street == 228 and Ave == 145 
+| join kind=leftanti (
+    CarsTraffic | where Street == 121 and Ave == 180 | distinct VIN) on VIN 
+| distinct VIN 
+| count
+
+
+//time-window joins: https://learn.microsoft.com/azure/data-explorer/kusto/query/join-timewindow
+//crate time keys to join on: https://learn.microsoft.com/azure/data-explorer/kusto/query/rangefunction
+//expand as columns: https://learn.microsoft.com/azure/data-explorer/kusto/query/mvexpandoperator
+
+
+//ie. How many calls a person made after her first call per day.
+
+let _number = '06309267053';
+let _lookupWindow=1h;
+PhoneCalls
+| where Properties.Origin == _number
+| summarize FirstCallTime=min(Timestamp) by bin(Timestamp, 1d) // 1st call per day
+| extend TimeKey = range(bin(FirstCallTime, 1min), FirstCallTime + _lookupWindow, 1min) // Prepare keys for joins per 1min
+| mv-expand TimeKey to typeof(datetime) // Expand keys
+| join kind = inner (
+        PhoneCalls
+        | where Properties.Origin == _number
+        | extend OtherCallTime = Timestamp
+        | extend TimeKey = bin(Timestamp, 1min) 
+        ) on TimeKey
+// Check condition based on real values (join may bring more rows, due to discretization of the timeline)
+| where OtherCallTime between ((FirstCallTime + 1s) .. (FirstCallTime + _lookupWindow))
+| summarize Calls=count() by bin(FirstCallTime, 1d)
+| summarize avg(Calls)
+
+
+// Hint 1/3
+// The criminals have replaced the VINs. 
+// Taking only a few minutes on average to perform the swap. 
+
+
+// Hint 2/3
+// The gang members might be utilizing crowded public parking lots to switch number plates amidst numerous cars. 
+
+
+// Hint 3/3
+// The gang believes they're outsmarting everyone by gathering stolen cars in one location. 
+// Little do they know, this could be their fatal mistake.
+// Exploit their tendency to converge in a single spot.
+
+
+StolenCars
+| count 
+
+// A total of 20 cars were stolen and their original plate are known
+// Robbers have changed cars plate numbers in hidden spots
+// Robbers have a single rendezvous spot for cars, we're asked to find it
+
+CarsTraffic
+| take 10
+
+StolenCars
+| take 20
+// old plates
+
+// where old plates last seen?
+CarsTraffic
+| where VIN in (StolenCars)
+| extend location = strcat("[", Ave, "," , Street, "]")
+| summarize arg_max(Timestamp, location) by VIN
+| distinct location
+// [223,86], [122,251]
+
+
+let swapspot = CarsTraffic
+    | where VIN in (StolenCars)
+    | extend loc = strcat("[", Ave, "," , Street, "]")
+    | summarize arg_max(Timestamp, loc) by VIN
+    | distinct loc;
+let swapvins = CarsTraffic
+    | extend loc = strcat("[", Ave, "," , Street, "]")
+    | where loc in (swapspot)
+    | distinct VIN;
+CarsTraffic 
+| extend loc = strcat("[", Ave, "," , Street, "]")
+| where VIN in (swapvins)
+| where VIN !in (StolenCars) //diregard old stolen plates
+| summarize (Last, loc)=arg_max(Timestamp, loc) by VIN //last seen
+| summarize count() by loc //count per loc
+// Filtering amount of cars to allow up to 3 extra robbers cars on top of the stolen cars
+| where count_ >= 20
+
+
+//We got them! 21 cars at [156 ave, 81 street]
