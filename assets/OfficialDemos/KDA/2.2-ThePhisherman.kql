@@ -28,7 +28,7 @@ PhoneCalls
 //https://learn.microsoft.com/azure/data-explorer/kusto/query/dcount-aggfunction
 
 
-let spamm = PhoneCalls
+let hungup = PhoneCalls
     | where EventType == 'Disconnect'
     | extend tostring(Properties.DisconnectedBy)
     | where Properties_DisconnectedBy == 'Destination';
@@ -38,7 +38,7 @@ PhoneCalls
 | extend dest=tostring(Properties.Destination)
 | extend hidden=tobool(Properties.IsHidden)
 | where hidden
-| join kind=inner spamm on CallConnectionId 
+| join kind=inner hungup on CallConnectionId 
 | summarize dcount(dest) by org
 | top 20000 by dcount_dest desc
 | render columnchart
