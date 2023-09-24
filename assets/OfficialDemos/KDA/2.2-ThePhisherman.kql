@@ -1,0 +1,46 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// the phisherman!
+
+.execute database script <|
+.create-merge table PhoneCalls (Timestamp:datetime, EventType:string, CallConnectionId:string, Properties:dynamic)
+//clear any previously ingested data if such exists
+.clear table PhoneCalls data
+.ingest async into table PhoneCalls (@'https://kustodetectiveagency.blob.core.windows.net/kda2c2phonecalls/log_00000.csv.gz')
+.ingest async into table PhoneCalls (@'https://kustodetectiveagency.blob.core.windows.net/kda2c2phonecalls/log_00001.csv.gz')
+// Last command is running sync, so when it finishes the data is already ingested.
+// It can take about 1min to run.
+.ingest into table PhoneCalls (@'https://kustodetectiveagency.blob.core.windows.net/kda2c2phonecalls/log_00002.csv.gz')
+
+
+.show table PhoneCalls details 
+| summarize compressed=format_bytes(sum(TotalExtentSize), 2, 'GB'), original=format_bytes(sum(TotalOriginalSize),2,'GB'), sum(TotalRowCount)
+
+PhoneCalls
+| take 10
+
+PhoneCalls
+| mv-expand Properties
+| take 10
+
+//hidden, for disconnected by destination - who initiated?
+//Distinct Origin that called to the most & disconnected @ Destination?
+//https://learn.microsoft.com/azure/data-explorer/kusto/query/dcount-aggfunction
+
+
+let spamm = PhoneCalls
+    | where EventType == 'Disconnect'
+    | extend tostring(Properties.DisconnectedBy)
+    | where Properties_DisconnectedBy == 'Destination';
+PhoneCalls
+| where EventType == 'Connect' 
+| extend org=tostring(Properties.Origin)
+| extend dest=tostring(Properties.Destination)
+| extend hidden=tobool(Properties.IsHidden)
+| where hidden
+| join kind=inner spamm on CallConnectionId 
+| summarize dcount(dest) by org
+| top 20000 by dcount_dest desc
+| render columnchart
+
+// 06784884765	186
