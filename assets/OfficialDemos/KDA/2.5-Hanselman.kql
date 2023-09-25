@@ -1,0 +1,20 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Blast into the past!
+// Scott Hanselman's podcast
+
+// smoke spilled the beans, video scrapped, but published before deletion...hahaha!
+// the public logs have the juicy details.
+// find the video url!
+
+.execute database script <|
+.create-merge table StorageArchiveLogs(Timestamp:datetime, EventText:string)
+//clear any previously ingested data if such exists
+.clear table StorageArchiveLogs data
+.ingest async into table StorageArchiveLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c5backuplogs/log_00000.csv.gz')
+.ingest async into table StorageArchiveLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c5backuplogs/log_00001.csv.gz')
+.ingest into table StorageArchiveLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c5backuplogs/log_00002.csv.gz')
+
+
+StorageArchiveLogs
+| take 10
