@@ -235,7 +235,7 @@ StorageArchiveLogs
 | where Host == 'okeexeghsqwmda.blob.core.windows.net'
 | parse EventText with "Create blob transaction: '" BlobOriginal "' backup is created on " BlobBackup
 | summarize strcat_array(make_set(BlobBackup), "\n") by Host
-// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/jqfovf.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/jqfovf.mp4   <--- This is the clip
 // https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/lssnsgp.mp4
 // https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/cibsll.mp4
 // https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/xhlknaxtat.mp4
@@ -246,13 +246,6 @@ StorageArchiveLogs
 
 
 // the whole query
-// okeexeghsqwmda.blob.core.windows.net
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/cibsll.mp4
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/tuumqktfd.mp4
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/xhlknaxtat.mp4
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/wjoykmmuw.mp4
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/jqfovf.mp4      <--- This one
-//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/lssnsgp.mp4
 let PopularHosts = 
 StorageArchiveLogs
 | parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
