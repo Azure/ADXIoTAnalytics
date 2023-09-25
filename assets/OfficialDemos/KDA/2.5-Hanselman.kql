@@ -18,3 +18,283 @@
 
 StorageArchiveLogs
 | take 10
+
+// Hint 1/3
+// Imagine the vast influencer's digital realm. Thousands of views = popularity.
+// Explore the data logs with precision. 
+// Which storage accounts shine brightly with a surge of views?
+
+// Hint 2/3
+// Culprits have a telltale signature. 
+// Now, shift your focus to Scott's weekly releases. 
+// What hidden patterns emerge when you study the access logs?
+
+// Hint 3/3
+// Investigate the shadows cast by the missing video. ie. Backup?
+// Unique in its own way, what traces  remain? 
+
+
+// recap
+// 1. We're looking for a backup of a deleted video
+// 2. The videos are part of a popular podcast with thousands of views
+// 3. This is a weekly podcast
+
+
+// train
+// parse EventText
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/parseoperator
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction:" *
+| distinct TransactionType
+
+// but there's more.
+StorageArchiveLogs
+| take 10 
+
+StorageArchiveLogs
+| parse EventText with "Read blob transaction: '" BlobURI "' read access (" ReadCount:long " reads) were detected on the origin"
+| take 10
+
+// which url had the highest number of reads?
+StorageArchiveLogs
+| parse EventText with 
+    "Read blob transaction: '" BlobURI 
+    "' read access (" ReadCount:long 
+    " reads) were detected" *
+| summarize sum(ReadCount) by BlobURI
+| top 1 by sum_ReadCount
+
+//https://chqqrftxw.blob.core.windows.net/hnwm/uvmiaaai.mpeg, 3151 views.
+
+
+// special parsing. ie. parse_url()
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/parseurlfunction
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| extend Details = parse_url(BlobURI)
+| project EventText, BlobURI, Details
+| take 10
+
+//which host had the highest deletions?
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| where TransactionType == 'Delete'
+| extend Details = parse_url(BlobURI)
+| extend Host=tostring(Details.Host)
+| summarize count() by Host
+| top 1 by count_
+//fvxutxxifukdv.blob.core.windows.net, 52 deletions
+
+
+// calc multiple metrics per tran type? ie. deletes per host & sum of reads.
+// no need to agg twice & join, simply countif() and sumif()
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/countif-aggfunction
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/sumif-aggfunction
+
+// Using conditional aggregates
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse EventText with * "(" Reads:long "reads)" *
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize Deletes=countif(TransactionType  == 'Delete'), 
+		Reads=sumif(Reads, TransactionType == 'Read') by Host
+| top 1 by Reads
+//23s
+// aehmgtqhcly.blob.core.windows.net, 38 deletes, 25925 reads.
+
+// Using join - requires double-pass over the data, so it works slower
+let ParsedData=StorageArchiveLogs
+    | parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+    | extend Host = tostring(parse_url(BlobURI).Host);
+ParsedData
+| where TransactionType == 'Read'
+| parse EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sum(Reads) by Host
+| join kind=inner (ParsedData
+    | where TransactionType == 'Delete'
+    | summarize count() by Host)
+    on Host
+| top 1 by Reads
+
+// like we always say, if something rings a bell, use series_decompose_anomalies.
+// if it rings all the time, go for series_periods_validate()
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/series-periods-validatefunction
+
+
+
+
+// recap
+// 1. We're looking for a backup of a deleted video
+// 2. The videos are part of a popular podcast with thousands of views
+// 3. This is a weekly podcast
+
+// TransactionType	TransactionDetails
+// Read             https://avgqhwfbmtv.blob.core.windows.net/lkmi/pjiuuddny.avi' read access (1 reads) were detected on the origin
+// Delete           https://rqdkqmjamd.blob.core.windows.net/slqtcn/ogotdnk.mpv' backup is partially removed, some parts may still be available in the archive location.
+// Create           https://uojwdyyiijmkbl.blob.core.windows.net/gjavx/wtffcrnpqv.mov' backup is created on https://storagebackup.azureedge.net/uojwdyyiijmkbl/gjavx/wtffcrnpqv.mov
+StorageArchiveLogs 
+| parse EventText with TransactionType " blob transaction: '" TransactionDetails
+| summarize take_any(TransactionDetails) by TransactionType
+
+
+// maybe 1K+ views?
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by BlobURI
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize AvgReads = avg(Reads) by Host
+| where AvgReads > 1000
+| project Host, AvgReads
+| top 10 by AvgReads desc;
+
+// visualize this ocean of data in a series
+
+let popular = StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by BlobURI
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize AvgReads = avg(Reads) by Host
+| where AvgReads > 2000
+| project Host;
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host in (popular)
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by Host, Timestamp=bin(Timestamp, 1h)
+| make-series Reads=sum(Reads) default=0 on Timestamp step 1h by Host
+| render timechart;
+
+
+//suspicious anomolous with a negative trend due to deletions
+let popular = StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by BlobURI
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize AvgReads = avg(Reads) by Host
+| where AvgReads > 2000
+| project Host;
+let propularReads=StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host in (popular)
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by Host, Timestamp=bin(Timestamp, 1h)
+| make-series Reads=sum(Reads) default=0 on Timestamp step 1h by Host;
+propularReads
+| extend (flag, score, baseline) = series_decompose_anomalies(Reads)
+| mv-expand flag to typeof(real), score to typeof(double)
+| where flag < 0
+| summarize score=min(score) by Host
+// | project Host, score
+// okeexeghsqwmda.blob.core.windows.net
+
+
+// but its a weekly podcast so must have weekly seasonality.
+
+
+let popular = StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by BlobURI
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize AvgReads = avg(Reads) by Host
+| where AvgReads > 2000
+| project Host;
+let propularReads=StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host in (popular)
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by Host, Timestamp=bin(Timestamp, 1h)
+| make-series Reads=sum(Reads) default=0 on Timestamp step 1h by Host;
+let suspicious=propularReads
+| extend (flag, score, baseline) = series_decompose_anomalies(Reads)
+| mv-expand flag to typeof(real), score to typeof(double)
+| where flag < 0
+| summarize score=min(score) by Host
+| project Host;
+propularReads
+| where Host in (suspicious)
+| extend (p, ps) = series_periods_validate(Reads, 24*7) //168.0hrs 
+| extend p  = todouble(p[0])
+| extend ps = todouble(ps[0])
+| where ps > 0.5
+| project Host
+//okeexeghsqwmda.blob.core.windows.net
+
+
+//All we want is where are the backup files?
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| where TransactionType  == 'Create'
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host == 'okeexeghsqwmda.blob.core.windows.net'
+| parse EventText with "Create blob transaction: '" BlobOriginal "' backup is created on " BlobBackup
+| summarize strcat_array(make_set(BlobBackup), "\n") by Host
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/jqfovf.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/lssnsgp.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/cibsll.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/xhlknaxtat.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/tuumqktfd.mp4
+// https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/wjoykmmuw.mp4
+
+// he has multiple clips again! hehehe...
+
+
+// the whole query
+// okeexeghsqwmda.blob.core.windows.net
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/cibsll.mp4
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/tuumqktfd.mp4
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/xhlknaxtat.mp4
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/wjoykmmuw.mp4
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/jqfovf.mp4      <--- This one
+//     https://storagebackup.azureedge.net/okeexeghsqwmda/vyskl/lssnsgp.mp4
+let PopularHosts = 
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by BlobURI
+| extend Host = tostring(parse_url(BlobURI).Host)
+| summarize AvgReads = avg(Reads) by Host
+| where AvgReads > 1000
+| project Host;
+//
+let ReadsSeriesOfPopularHosts = 
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host in (PopularHosts)
+| parse-where EventText with * "(" Reads:long "reads)" *
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by Host, Timestamp=bin(Timestamp, 1h)
+| make-series Reads=sum(Reads) default=0 on Timestamp step 1h by Host;
+//
+let SuspectedHosts = 
+(ReadsSeriesOfPopularHosts
+| extend (flag, score, baseline) = series_decompose_anomalies(Reads)
+| mv-expand flag to typeof(real), score to typeof(double)
+| where flag < 0
+| summarize score=max(score) by Host
+| project Host);
+//
+let MostSuspiciousHost = 
+tostring(toscalar(
+ReadsSeriesOfPopularHosts
+| where Host in (SuspectedHosts)
+| extend (p, ps) = series_periods_validate(Reads, 168.0) 
+| extend p  = todouble(p[0])
+| extend ps = todouble(ps[0])
+| where ps > 0.5
+| project Host));
+//
+StorageArchiveLogs
+| parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+| where TransactionType  == 'Create'
+| extend Host = tostring(parse_url(BlobURI).Host)
+| where Host == MostSuspiciousHost
+| parse EventText with "Create blob transaction: '" BlobOriginal "' backup is created on " BlobBackup
+| summarize strcat_array(make_set(BlobBackup), "\n") by Host
+
