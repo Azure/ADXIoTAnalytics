@@ -1,0 +1,26 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// triple trouble!
+
+.execute database script <|
+.create-merge table IpInfo (IpCidr:string, Info:string)
+//clear any previously ingested data if such exists
+.clear table IpInfo data
+.ingest into table IpInfo (@'https://kustodetectiveagency.blob.core.windows.net/kda2c4network/ip-lookup.csv.gz')
+.create-merge table NetworkMetrics (Timestamp:datetime, ClientIP:string, TargetIP:string, BytesSent:long, BytesReceived:long, NewConnections:int)
+.clear table NetworkMetrics data
+.ingest async into table NetworkMetrics (@'https://kustodetectiveagency.blob.core.windows.net/kda2c4network/log_00000.csv.gz')
+.ingest async into table NetworkMetrics (@'https://kustodetectiveagency.blob.core.windows.net/kda2c4network/log_00001.csv.gz')
+// Last command is running sync, so when it finishes the data is already ingested.
+// It can take about 1.5min to run.
+.ingest into table NetworkMetrics (@'https://kustodetectiveagency.blob.core.windows.net/kda2c4network/log_00002.csv.gz')
+
+
+//who is behind all this? 
+
+IpInfo
+| take 10 
+
+NetworkMetrics
+| take 10
+
