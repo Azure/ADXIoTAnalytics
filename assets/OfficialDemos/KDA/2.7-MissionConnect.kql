@@ -1,0 +1,191 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Mission "Connect"
+
+// Recap:
+// Krypto is on the run, so lets find him
+// Spotted at Doha airport on August 11, 2023, between 03:30 AM and 05:30 AM (UTC)
+// He jumped plane-to-plane on a wingsuit and managed to escape from tracking
+
+.execute database script <|
+.create-merge table Flights(Timestamp:datetime, callsign:string, lat:real, lon:real, velocity:real, heading:real, vertrate:real, onground:bool, geoaltitude:real) 
+.create-merge table Airports (Id:string, Ident:string, Type:string, Name:string, lat:real, lon:real, elevation_ft:long, iso_country:string, iso_region:string, municipality:string, gps_code:string, local_code:string)  
+.ingest into table Airports (@'https://kustodetectiveagency.blob.core.windows.net/kda2c7flights/airports.csv.gz')
+.ingest async into table Flights (@'https://kustodetectiveagency.blob.core.windows.net/kda2c7flights/flights_1.csv.gz')
+.ingest async into table Flights (@'https://kustodetectiveagency.blob.core.windows.net/kda2c7flights/flights_2.csv.gz')
+.ingest into table Flights (@'https://kustodetectiveagency.blob.core.windows.net/kda2c7flights/flights_3.csv.gz')
+
+// what city did Krypto land on? 
+
+Airports
+| take 10 
+
+Flights
+| take 10
+
+// hint 1
+// Have you noticed how crowded our sky? 
+// Think about all the planes that left Doha that morning. 
+// Can you imagine the countless other planes they encountered along their way? 
+
+// hint 2 - wingsuit jumping
+// It takes some time to gear up and a couple more minutes to fly-in. 
+// Naturally, it also means planes getting cozy together for several minutes within just a few kilometers of distance!
+
+// hint 3 
+// with just minutes to dash towards the next plane it's all about attitude. 
+// wingsuit sky-jumping demands proximity, and specific plane attitude, one over the other.
+
+
+// lat & lon to pinpoint any spot on earth.
+// measuring the distance between two point can be done efficiently by geo-hashing (H3, S2, GeoHash). 
+// as a string, we can compare hashed values instead calculating the distance.
+// S2 is recommened for most cases and usually fastest.
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/geospatial-grid-systems
+
+// how many planes cross a location? Lat=51.523769, Lon=-0.158474 (Sherlock Holmes at Baker Street, 221b, London)
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/geo-point-to-s2cell-function
+let PointsNearBy = (Lon1:double, Lat1:double, Lon2:double, Lat2:double, s2_precision:int)
+{
+    geo_point_to_s2cell(Lon1, Lat1, s2_precision) ==
+    geo_point_to_s2cell(Lon2, Lat2, s2_precision) 
+};
+Flights
+| where PointsNearBy(lon, lat, -0.158474, 51.523769, s2_precision = 13) // Level: 13 is ~1km
+| count
+
+
+// find closet airport?
+Airports
+| where municipality == 'London'
+| where iso_region == "GB-ENG"
+| extend DistanceInMeters=round(geo_distance_2points(lon, lat, -0.158474, 51.523769))
+| summarize arg_min(DistanceInMeters, Name, Type) //viola!
+
+
+// count planes landing/departing at that airport
+let s2_precision = 11; // ~3km 
+Airports
+| where Name == "London City Airport"
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+    Flights
+    | extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+    | where onground // Only consider planes that were on the ground
+) on key
+| summarize dcount(callsign)
+
+
+// distinct count planes for all London airports that day?
+// Use ~20km radius - it may return some false-positives, but we will double-check later
+let s2_precision = 9; 
+Airports
+| where municipality == 'London'
+| where iso_region == "GB-ENG"
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+    Flights
+    | extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+    | where onground // Only consider planes that were on the ground
+) on key
+| where geo_distance_2points(lon, lat, lon1, lat1) < 5000 // Assume a 5km radius is enough
+| summarize dcount(callsign)
+
+// most popular destination city(municipality) for flights from london?
+let s2_precision = 9; 
+Airports
+| where municipality == 'London'
+| where iso_region == "GB-ENG"
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+    Flights
+    | extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+    | where onground // Only consider planes that were on the ground
+) on key
+| where geo_distance_2points(lon, lat, lon1, lat1) < 5000 // Assume a 5km radius is enough
+| summarize DepartingTime=max(Timestamp) by callsign
+// We have all the flights that touched ground in London,
+// and now we want to join the rest of the data for these flights
+// to discover where they headed to
+| join kind=inner (
+    Flights    
+    | where onground // Check planes that are only on the ground
+    | summarize (LandingTime, LandingLon, LandingLat)=arg_max(Timestamp, lon, lat) by callsign 
+)  on callsign
+| where LandingTime > DepartingTime // Make sure we count only flights that fly from London
+| extend key=geo_point_to_s2cell(LandingLon, LandingLat, s2_precision)
+| lookup (Airports | extend key=geo_point_to_s2cell(lon, lat, s2_precision)) on key
+| where geo_distance_2points(lon, lat, LandingLon, LandingLat) < 5000 // Assume a 5km radius is enough
+| summarize FlightsCount=dcount(callsign) by municipality
+| top 1 by FlightsCount
+
+
+
+// lets find Krypto!
+Airports
+| where municipality == "Doha"
+
+// 1. Taking off from Doha Airport, we shall find SourcePlanes
+// 2. Sky-Jumping from source plane to destination plane, we shall finds the intersection of time and place for planes, 
+// 3. then reduce to those with the closest geolatitude that allows jump from source plane to destination plane.
+// 4. Landing at safe heavens, we shall find where planes from the previous step have landed.
+
+
+// Barcelona
+let s2_precision = 13; 
+let OngroundTime = datetime(2023-08-11 03:30);
+let TakeoffTime  = datetime(2023-08-11 05:30);
+// Step 1 : Taking-off from Doha Airport, we shall find SourcePlanes
+let SourcePlanes = Airports
+| where municipality == "Doha"
+| where iso_region == "QA-DA"
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+    Flights
+    | extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+    | where onground // Only consider planes that were on the ground
+    | where Timestamp between (OngroundTime .. TakeoffTime) // On ground when Krypto in Doha Airport
+) on key
+| where geo_distance_2points(lon, lat, lon1, lat1) < 5000 // Assume a 5km radius is enough
+| summarize DepartingTime=max(Timestamp) by callsign
+// We have all the flights that touched ground in Doha,
+// and now we want to join the rest of the data for these flights
+// to discover where they headed to
+| join kind=inner (Flights    
+    | where onground // Check planes that are only on the ground
+    | summarize (LandingTime, LandingLon, LandingLat)=arg_max(Timestamp, lon, lat) by callsign 
+)  on callsign
+| where LandingTime > DepartingTime
+| distinct callsign;
+// Step 2 : Sky-Jumping from source plane to destination plane
+let SourceOnAir = Flights
+| where Timestamp > TakeoffTime
+| where not(onground)
+| where callsign in (SourcePlanes)
+| extend key = geo_point_to_s2cell(lon, lat, s2_precision)
+| extend SourcePlane_geoaltitude = geoaltitude
+| extend SourcePlane_callsign = callsign;
+let DestinationPlaneCallsign = toscalar(Flights
+| where Timestamp > TakeoffTime
+| where not(onground)
+| where callsign !in (SourcePlanes)
+| extend key = geo_point_to_s2cell(lon, lat, s2_precision)
+| extend DestinationPlane_geoaltitude = geoaltitude
+| extend DestinationPlane_callsign = callsign
+| join kind=inner SourceOnAir on key
+| where Timestamp == Timestamp1
+| extend GeoLatitudeDiffrence = SourcePlane_geoaltitude - DestinationPlane_geoaltitude
+| where GeoLatitudeDiffrence > 0
+| summarize MinGeoLatitudeDiffrence = min(GeoLatitudeDiffrence) by SourcePlane_callsign, DestinationPlane_callsign
+| top 1 by MinGeoLatitudeDiffrence asc
+| project DestinationPlane_callsign);
+// Step 3 : Landing in safe-heavens
+let WhereLanded = Flights
+| where callsign == DestinationPlaneCallsign
+| summarize (LandingTime, LandingLon, LandingLat)=arg_max(Timestamp, lon, lat) by callsign 
+| extend key=geo_point_to_s2cell(LandingLon, LandingLat, s2_precision)
+| lookup (Airports | extend key=geo_point_to_s2cell(lon, lat, s2_precision)) on key
+| where geo_distance_2points(lon, lat, LandingLon, LandingLat) < 5000
+| project municipality;
+WhereLanded
+//Barcelona
