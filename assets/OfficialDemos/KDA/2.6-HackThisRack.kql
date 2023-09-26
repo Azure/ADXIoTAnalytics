@@ -1,0 +1,280 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Hack this rack
+
+
+12204/497 62295/24 50883/678 47108/107 193867/3,
+45534/141 hidden 100922/183 143461/1 1181/505 46187/380.
+41526/155 66447/199 30241/114, 33745/154 12145/387 46437/398 177191/131:
+293/64 41629/1506 210038/432, 41612/803 216839/1.
+
+404/258 rules 40/186 1472/222 122894/2 46081/105:
+41594/650 32579/439 44625/141 184121/19 33254/348 357/273 32589/821,
+46171/687 punctuations 62420/10 50509/48 1447/128,
+176565/82'56721/591 561/225 insensitive, 30744/129 76197/32.
+
+1319/42 41599/216 68/457 136016/146, 42420/126'46198/389 42429/158 40091/108 41667/252,
+1515/555 177593/223 176924/73 45889/65 159836/96 35080/384 32578/199.
+1607/167 124996/9 71/56, 1303/187 45640/1114 72328/247 75802/11,
+1168/146 163380/12 57541/116 206122/738 365/267 46026/211 46127/19.
+
+119295/425 45062/128 12198/133 163917/238 45092/8 54183/4 42453/82:
+561/433 9/387 37004/287 1493/118 41676/38 163917/238 3159/118 63264/687
+1/905 1493/109 43723/252, 136355/1 1159/134 40062/172 32588/604,
+158574/1 45411/8 10/892 127587/175 - 633/9 72328/247 1514/615 42940/138.
+
+164958/84 221014/479 151526/7 111124/138, 41668/206 34109/46 1514/555,
+147789/2 3228/152 993/323 166477/167 178042/167, 50753/91'207786/8 12/372.
+1108/158'42423/150 12/309 66154/9 213566/11 44981/158 1197/300
+40184/149 92994/63-71071/179 75093/7 211718/18 74211/5 46144/399.
+
+
+.execute database script <|
+// The data was obtained from the repository of the National Gallery of Art:
+// https://github.com/NationalGalleryOfArt/opendata
+.create-merge table NationalGalleryArt (ObjectId:long, Title:string, BeginYear:long, EndYear:long, Medium:string, Inscription:string, Attribution:string, AssistiveText:string, ProvenanceText:string, Creditline:string, Classification:string, ImageUrl:string)  
+//clear any previously ingested data if such exists
+.clear table NationalGalleryArt data
+.ingest into table NationalGalleryArt ('https://kustodetectiveagency.blob.core.windows.net/kda2c6art/artview.csv')
+
+
+// Who is the leader of Kuanda.org?
+// Decypher the text for new recruits of the evil-power KUANDA org.
+// The cipher has to do with art gallery
+
+NationalGalleryArt
+| take 10 
+
+// Hint 1
+// Can you find 41701/11 this word is located in the 131736/0 data?
+
+//tolower() and toupper()
+print word1=tolower('Hello '), word2=toupper('world!')
+| extend together= strcat(word1, word2)
+| extend len = strlen(together)
+
+// parse, now regex! haha.
+// ie. you have a recepie, and you'd like to extract a list of ingredienyc_trees
+// Create table 'Recipe' with single column and value
+.set-or-append Recipe <|
+print Text =
+```Apple Surprise Pie.
+There are at least 1024 ways of making Apple pie.
+Here is a special one that works for the most of detectives.
+---
+Ingredients:
+1 kg of sliced apples
+20 grams of diced mango
+125 grams of dried cherries
+150 grams of all-purpose flour
+50 grams of shredded coconut
+1 tablespoon of lemon juice
+---
+Directions:
+Union all ingredients in mixing bowl.
+Ask someone who knows how to cook to help you.
+```
+
+// Ingredients are listed after Ingredients heading and before Directions.
+// capture the exitre ingredients paragraph using extract()
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/extractfunction
+Recipe
+| extend IngredientsList = extract(@'(?s)Ingredients:(.+)Directions:', 1, Text)
+// (?s) = single-line. tells extract to treat the whole text as a single line.
+// the argument 1 tells extract to use 1st matching group (.+) as an output.
+
+
+// break the ingredients into seperate pieces
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/extractallfunction
+// extract_all() returns multiple matches as an array.
+// in this case the ingredient is described by a pattern of 3 parts. 
+// the number, the unit of measurement (kg. grams), and the ingredient.
+// Common Regex expressions:
+// (\d+) for matching numbers
+// (\w+) for matching complete words
+// (\s*) for matching empty strings
+// (.+?) for matching complex phrases
+// '$' for matching line endings and '^' for matching line beginnings
+Recipe
+| extend IngredientsList = extract(@'(?s)Ingredients:(.+)Directions:', 1, Text)
+| extend Ingredients = extract_all(@'(?m)^(\d+) (\w+) of (.+?)\s*$', IngredientsList)
+// (?m)" (multi-line) to allow matching of each line in the text separately.
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/re2-library
+
+// mv-expand
+// can also number the items in the list using with_itemindex! ❤️
+Recipe 
+| extend Ingredients = extract_all(@'(?m)^(\d+) (\w+) of (.+?)\s*$', Text)
+| mv-expand with_itemindex=Index Ingredients 
+| project Index, 
+    Item=tostring(Ingredients[2]), 
+    Amount=todouble(Ingredients[0]),
+    Units=tostring(Ingredients[1])
+
+
+// order and row_number()
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/rownumberfunction
+Recipe 
+| extend Ingredients = extract_all(@'(?m)^(\d+) (\w+) of (.+?)\s*$', Text)
+| mv-expand Ingredients
+| project Item=tostring(Ingredients[2]), Amount=todouble(Ingredients[0]), Units=tostring(Ingredients[1])
+| order by Item asc
+| extend Index = row_number()
+| project-reorder Index
+
+
+// replace strings
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/replace-regex-function
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/replace-string-function
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/replace-strings-function
+Recipe
+| extend NewText = replace_strings(tolower(Text),
+ dynamic(['apples', 'apple', 'pie', 'grams', 'kg', 'mango', 'cherries', 'flour',
+ 'coconut', 'spoon', 'lemon juice', 'cook', 'mixing', 'bowl']),
+ dynamic(['timeseries', 'timeseries', 'chart', 'values', 'table', 'anomalies', 'nulls',
+ 'functions', 'aggregations', '', 'metadata', 'KQL', 'query', 'editor']))
+
+
+// What is the word count of the original recipe?
+Recipe
+| extend words = extract_all(@"(\w+)", Text)
+| extend WordCount = array_length(words)
+
+
+// recap
+// The number/number notation is Book Cipher (https://en.wikipedia.org/wiki/Book_cipher)
+// how could the two be related?
+// The first number is probably the ObjectId 
+// the second number is the word location in ProvenanceText based on numbers magnitude.
+
+
+let RecruitInstructions = 
+```12204/497 62295/24 50883/678 47108/107 193867/3,
+45534/141 hidden 100922/183 143461/1 1181/505 46187/380.
+41526/155 66447/199 30241/114, 33745/154 12145/387 46437/398 177191/131:
+293/64 41629/1506 210038/432, 41612/803 216839/1.
+
+404/258 rules 40/186 1472/222 122894/2 46081/105:
+41594/650 32579/439 44625/141 184121/19 33254/348 357/273 32589/821,
+46171/687 punctuations 62420/10 50509/48 1447/128,
+176565/82'56721/591 561/225 insensitive, 30744/129 76197/32.
+
+1319/42 41599/216 68/457 136016/146, 42420/126'46198/389 42429/158 40091/108 41667/252,
+1515/555 177593/223 176924/73 45889/65 159836/96 35080/384 32578/199.
+1607/167 124996/9 71/56, 1303/187 45640/1114 72328/247 75802/11,
+1168/146 163380/12 57541/116 206122/738 365/267 46026/211 46127/19.
+
+119295/425 45062/128 12198/133 163917/238 45092/8 54183/4 42453/82:
+561/433 9/387 37004/287 1493/118 41676/38 163917/238 3159/118 63264/687
+1/905 1493/109 43723/252, 136355/1 1159/134 40062/172 32588/604,
+158574/1 45411/8 10/892 127587/175 - 633/9 72328/247 1514/615 42940/138.
+
+164958/84 221014/479 151526/7 111124/138, 41668/206 34109/46 1514/555,
+147789/2 3228/152 993/323 166477/167 178042/167, 50753/91'207786/8 12/372.
+1108/158'42423/150 12/309 66154/9 213566/11 44981/158 1197/300
+40184/149 92994/63-71071/179 75093/7 211718/18 74211/5 46144/399.```;
+let ProvenanceTextWords = materialize(
+NationalGalleryArt
+| extend Tokens = extract_all(@'(\w+)', ProvenanceText));
+let CleanedRecruitInstructions = replace_string(
+                                 replace_string(
+                                 replace_string(
+                                 replace_string(
+                                 replace_string(
+                                 replace_string(RecruitInstructions, 
+                                "-", " - "), 
+                                "'", " ' "), 
+                                ",", " , "), 
+                                ".", ""), 
+                                "\r\n", " \n "), 
+                                ":", " : ");
+let CleanedRecruitInstructionsTokens = split(CleanedRecruitInstructions, " ");
+let TokensCount = array_length(CleanedRecruitInstructionsTokens);
+let DecipheredRaw = tostring(toscalar(
+range token_index from 0 to TokensCount step 1
+| extend original_token = CleanedRecruitInstructionsTokens[token_index]
+| extend cipher_indexes = split(original_token, "/")
+| extend should_translate = array_length(cipher_indexes) == 2
+| extend ObjectId = tolong(cipher_indexes[0])
+| extend WordIndex = tolong(replace_string(tostring(cipher_indexes[1]), ",", ""))
+| join kind=leftouter ProvenanceTextWords on ObjectId
+| extend Word = iff(should_translate, Tokens[WordIndex], original_token)
+| sort by token_index asc 
+|  summarize array_strcat(make_list(Word), " ")));
+let Deciphered = replace_string(replace_string(replace_string(replace_string(DecipheredRaw, " : ", ":"), " ' ", "'"), " , ", ", "), " - ", "-");
+print(Deciphered)
+
+```
+in catalogue of titles Grand,  
+ three hidden words Demand your Hand 
+ when found all,  they form A line: 
+ A clear timeline,  simply Fine 
+  
+ words rules are simple to Review: 
+ at least three Letters have in view,  
+ all punctuations Mark the End,  
+ they're case insensitive,  my friend 
+  
+ to find all words,  you'll need some skill,  
+ seeking the popular will guide you still 
+ below The King,  the first word mounts,  
+ the Second shares with Third their counts 
+  
+ reveal the last word with Wise thought: 
+ take first two letters from word most sought 
+ into marked dozen,  and change just one,  
+ and with those two - the word is done 
+  
+ so search the titles,  high and low,  
+ and when you find it,  you'll know 
+ you've picked the Image that revealed 
+ the pass-code to the World concealed
+```
+
+// Key takeaways from the recruit instructions:
+// 1. There are 3 secret words in the Title field
+// 2. The words are case insensitive
+// 3. Word is finished as soon as there is any punctuation
+// "all punctuations Mark the End"
+// 4. The words contain at least 3 characters
+// 5. The instructions to find words are:
+// 5.0. 3 words create "line" of "time"
+// "when found all, they form A line:
+// A clear timeline, simply Fine"
+// 5.1. Sort words by occurrences number descending
+// "seeking the popular will guide you still"
+// 5.2. First word appears right after 'King'
+// "below The King, the first word mounts"         <--- 1
+// 5.3. Second word has the same counts as the word "Third"
+// "the Second shares with Third their counts"     <--- 2
+// 5.4. The third word can be created from the 12th "marked dozen" word from the sorted list 
+// and the first two letters of the most common "most sought" word by changing a single character "change just one"
+// "reveal the last word with Wise thought:
+// take first two letters from word most sought
+// into marked dozen, and change just one,         <--- 3
+// and with those two — the word is done"
+
+// sort the words by commonality.
+ NationalGalleryArt
+| extend TitleUnified = toupper(Title) // Rule 2. The words are case insensitive
+| extend TitleWords = extract_all(@'(\w+)', TitleUnified) // Rule 1. There are 3 secret words in the Title field
+| mv-expand TitleWords to typeof(string)
+| where strlen(TitleWords) >= 3 // Rule 4. The words contain at least 3 characters
+| summarize WordCount=count() by TitleWords // Rule 5.1. Sort words by occurrences number descending
+| sort by WordCount desc 
+
+// 1. after KING, the word is: DAY
+// 2. Third counts 161, so does: YEAR 
+// 3. TH and the 12th word (MAN), creates: MONTH
+
+// the words do form a line!
+// time to extract.
+NationalGalleryArt
+| where Title has_all ("DAY", "MONTH", "YEAR")
+| project ImageUrl
+// login-hint: https://api.nga.gov/iiif/64c9eb07-5e01-40fe-8fd0-886cfb4a70c7/full/!900,900/0/default.jpg
+
+// next the new recruit, would attempt to log into kunda.org
+// password is by tentacle-order STOPKUSTO
+
+// the leader's name is Krypto
