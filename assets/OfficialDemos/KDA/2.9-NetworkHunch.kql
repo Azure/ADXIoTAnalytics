@@ -1,0 +1,219 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Network Hunch
+
+// Krypto had kidnapped Prof. Smoke.
+// https://kda-webassets.azureedge.net/images/kda-profsmoke-c9-d6fc863b62c5.mp4
+// The KDA network is made up of three types of machines: Gateway, Backend, and Admin.
+// requests > Gateway > various Backends > Admin. 
+// Each machine can split a request into sub-tasks. 
+// Sub-tasks > another Backend or Admin machine. 
+// Each machine does periodic vulnerability scans & alert issues.
+
+
+// Use graph-matching
+// Did a request or any of its sub-tasks reach a vulnerable Admin machine,
+// with all the hops along the way (Gateway and Backends) also being vulnerable?
+
+
+.execute database script <|
+.create-merge table MachineLogs (Timestamp:datetime, Machine:string, EventType:string, Message:string)
+.ingest async into table MachineLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c9kda/log_00000.csv.gz')
+.ingest async into table MachineLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c9kda/log_00001.csv.gz')
+.ingest into table MachineLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c9kda/log_00002.csv.gz')
+
+MachineLogs
+| take 10
+
+// hint 1 - task execution model
+// Incoming request land on a Gateway machine, initiating the initial task execution.
+// Tasks can generate (spawn) additional tasks, which may be delegated to other machines.
+// Common request flow: Gateway dispatches tasks to Backend machines. 
+// A Backend machine can either complete the task or spawn a new one, 
+// forwarding it to another Backend machine or an Admin machine for processing.
+
+// hint 2 - data takes precedence.
+// identify vulnerable machines, discern the roles of these machines, 
+// and figure how requests are being sent within the system?
+
+// hint 3 - graph model
+// is it a case of machines running request tasks, 
+// or do request tasks spawn and operate on the machines themselves?
+
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/graph-operators
+// (unite nodes & edges) https://learn.microsoft.com/azure/data-explorer/kusto/query/make-graph-operator
+// (find patterns) https://learn.microsoft.com/azure/data-explorer/kusto/query/graph-match-operator
+
+
+// peeps connected to "you"
+let SocialNetwork = datatable(Person:string, Connection:string)[
+    'Samuel Impson', 'You',
+    'Stas Fistuko', 'You',
+    'You', 'Gaia Budskott',
+    'You', 'Professor Smoke',
+    'Scott Hanselman', 'Satya Nadella',
+    'Satya Nadella', 'Bill Gates',
+    'Professor Smoke', 'Scott Hanselman',
+    'Gaia Budskott', 'Krypto',
+    'You', 'El Puente',
+];
+SocialNetwork
+| make-graph Person --> Connection //turns columns into "edges"
+| graph-match ()-[relation]->() //define a path pattern "(node1)-[edge]->(node2)" 
+    where relation.Person == 'You' or relation.Connection == 'You' 
+    project relation.Person, relation.Connection
+
+
+
+// filter on edges 
+let SocialNetwork =
+    datatable(Person: string, Connection: string)
+[
+    'Samuel Impson', 'You',
+    'Stas Fistuko', 'You',
+    'You', 'Gaia Budskott',  
+    'You', 'Professor Smoke',
+    'Scott Hanselman', 'Satya Nadella',   
+    'Satya Nadella', 'Bill Gates',      
+    'Professor Smoke', 'Scott Hanselman', 
+    'Gaia Budskott', 'Krypto',
+    'You', 'El Puente',
+];
+let People = datatable (Person: string, Title: string)
+[
+    'You',             'Detective',
+    'Professor Smoke', 'Professor',
+    'Gaia Budskott',   'Mayor',
+    'Satya Nadella',   'Microsoft CEO',
+    'Scott Hanselman', 'Technology Evangelist',
+    'Samuel Impson',   'Captain',
+    'Stas Fistuko',    'Agent',
+    'Krypto',          'Criminal',
+    'Bill Gates',      'Microsoft Founder',
+];
+SocialNetwork
+| make-graph Person --> Connection with People on Person
+| graph-match (start)--(other)
+    where start.Person == 'You' 
+    project Start=start.Person, Other=other.Person, Title=other.Title
+
+
+// why not join? the real gem - variable length paths!
+// ie. six degrees of separation, everyone's just six social connections away from each other?
+// special notation (relation*1..6) in the "graph-match"
+
+let SocialNetwork =
+    datatable(Person: string, Connection: string)
+[
+    'You', 'Gaia Budskott',  
+    'Professor Smoke', 'You',
+    'Scott Hanselman', 'Satya Nadella',
+    'Satya Nadella', 'Bill Gates',
+    'Professor Smoke', 'Scott Hanselman',
+    'Gaia Budskott', 'Krypto',
+    'You', 'El Puente',
+];
+let People = datatable (Person: string, Title: string)
+[
+    'You',             'Detective',
+    'Professor Smoke', 'Professor',
+    'Gaia Budskott',   'Mayor',
+    'Satya Nadella',   'Microsoft CEO',
+    'Scott Hanselman', 'Technology Evangelist',
+    'Samuel Impson',   'Captain',
+    'Stas Fistuko',    'Agent',
+    'Krypto',          'Criminal',
+    'Bill Gates',      'Microsoft Founder',
+];
+SocialNetwork
+| make-graph Person --> Connection with People on Person
+| graph-match (start)-[relation*1..6]-(other)
+    where start.Person == 'You' and other.Person == 'Bill Gates'
+    project Path=strcat(relation.Connection, '-->', relation.Person)
+ | project Path
+
+
+let SocialNetwork = datatable(Person: string, Connection: string)[
+    'You', 'Gaia Budskott',  
+    'Professor Smoke', 'You',            
+    'Scott Hanselman', 'Satya Nadella',   
+    'Satya Nadella', 'Bill Gates',      
+    'Professor Smoke', 'Scott Hanselman', 
+    'Gaia Budskott', 'Krypto',
+    'You', 'El Puente'];
+let People = datatable (Person: string, Title: string)[
+    'You',             'Detective',
+    'Professor Smoke', 'Professor',
+    'Gaia Budskott',   'Mayor',
+    'Satya Nadella',   'Microsoft CEO',
+    'Scott Hanselman', 'Technology Evangelist',
+    'Samuel Impson',   'Captain',
+    'Stas Fistuko',    'Agent',
+    'Krypto',          'Criminal',
+    'Bill Gates',      'Microsoft Founder'];
+SocialNetwork
+| make-graph Person --> Connection with People on Person
+| graph-match (start)-[relation*1..6]-(end) 
+  where start.Person contains "tt" and end.Person contains "ll"
+  project start.Person, end.Person
+// | count
+
+// recap
+// 1. We're given a network log and requested to find an attack
+// 2. The structure is Gateway->Backend (one or more)->Admin
+// 3. The attack is if all components are vulnerable
+// 4. Periodically each component is tested for vulnerabilities
+
+MachineLogs
+| take 10
+
+MachineLogs
+| summarize count() by EventType
+
+MachineLogs
+| summarize count() by EventType, bin(Timestamp,1m)
+| render timechart 
+
+MachineLogs
+| summarize take_any(*) by EventType
+
+// we have:
+// 1. PeriodicScan: Knowing both machine role and if vulnerable
+// 2. IncomingRequest: TaskId and it's source
+// 3. SpawnTask: TaskId and it's SpawnTaskId
+
+
+// idea: graph of vulnerable machines from Gateway to Admin
+let VulnerableMachines = materialize(
+MachineLogs
+| parse-where Message with Role " periodic scan completed, " n:int " critical vulnerabilities were found."
+| extend IsVulnerable = n > 0
+| where IsVulnerable
+| summarize Role=take_any(Role), FirstVulnerable=min(Timestamp) by Machine
+| project CurrentMachine=Machine, Role, FirstVulnerable);
+//
+let Initials =
+MachineLogs
+| where EventType == "IncomingRequest"
+| parse-where Message with "Got request with TaskID=" CurrentTaskID " from " PreviousMachine
+| extend CurrentMachine=Machine
+// Taking only vulnerable machines, and enriching with current machine role
+| join kind=inner VulnerableMachines on CurrentMachine
+| project Timestamp, CurrentMachine, PreviousMachine, CurrentTaskID, Role;
+//
+let Hopes =
+MachineLogs
+| where EventType == "SpawnTask"
+| extend CurrentMachine=Machine
+// Taking only vulnerable machines
+| where CurrentMachine in ((VulnerableMachines | project CurrentMachine))
+| parse-where Message with "TaskID=" CurrentTaskID ": spawning a sub-task with TaskID=" NextTaskID " on " NextMachine;
+Hopes
+// Making graph based on tasks ids, and leveraging the initial node details
+| make-graph CurrentTaskID --> NextTaskID with Initials on CurrentTaskID
+| graph-match (start)-[relation*1..100]->(end)
+    where start.Role == "Gateway" and end.Role == "Admin"
+    project StartMachine=start.CurrentMachine, EndMachine=end.CurrentMachine, MachinesPath=relation.CurrentMachine
+
+
+// What machine was compromised? MNX-71B4CC
