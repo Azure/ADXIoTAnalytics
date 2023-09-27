@@ -1,0 +1,82 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// End Game
+
+.execute database script <|
+.create table KuandaLogs (Timestamp:datetime, DetectiveId:string, Message:string)
+.ingest async into table KuandaLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c10adminlogs/log_00000.csv.gz')
+.ingest async into table KuandaLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c10adminlogs/log_00001.csv.gz')
+.ingest into table KuandaLogs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c10adminlogs/log_00002.csv.gz')
+
+
+
+// hint 1
+// All traces look alike, isn't it? Or... indeed - it isn't. 
+// Anything exceptional catch your eye?
+
+// hint 2
+// Did you get what are the trojan's intentions?
+// The key to the solution may be spread between the lines.
+
+// hint 3
+// Can you craft your final answer so it will fall between the cracks of the Kuanda's bitter defense?
+
+
+KuandaLogs
+| take 10
+
+
+// partition
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/partitionoperator
+// calc the time between events per detective.
+KuandaLogs
+| where DetectiveId endswith '11' // Just a sample of the data.
+| partition hint.strategy=native by DetectiveId // has lots of unique keys
+(
+    order by Timestamp asc 
+    | extend Diff = Timestamp - prev(Timestamp)
+)
+
+// scan
+// https://learn.microsoft.com/azure/data-explorer/kusto/query/scan-operator
+// ie. find the 1st activity within 10m of login event.
+KuandaLogs
+| where DetectiveId endswith '11' // Just a sample of the data.
+| partition hint.strategy=native by DetectiveId
+(
+    order by Timestamp asc 
+    | scan declare(FirstActivity:string, LoginTime:datetime) with (
+        step start output=none: Message has 'User entered the system' => LoginTime=Timestamp; 
+        step s2:
+            Timestamp - start.LoginTime < 10min and Message !has 'User entered the system' 
+            =>  FirstActivity = Message, LoginTime = start.LoginTime;
+    )
+    | project DetectiveId, LoginTime, FirstActivityTimestamp=Timestamp,  FirstActivity
+)
+
+
+// calc detective working 'sessions'
+// a 'session' starts when user 'enters the system' or encounters a 'user session reset'
+// 'session' ends after 10m pass.
+KuandaLogs
+| where DetectiveId endswith '11' // Just a sample of the data.
+| partition hint.strategy=native by DetectiveId
+(
+    order by Timestamp asc 
+     | scan with_match_id=id  declare(StartTime:datetime, EndTime:datetime) with (
+        step start output=none: 
+			Message has 'User entered the system' or Message has 'User session reset' => StartTime = Timestamp;
+        step completed output=last:
+			(Timestamp-start.StartTime > 10min) => 
+			StartTime = start.StartTime, EndTime = Timestamp;
+    )
+    | order by id asc, Timestamp asc
+    | extend SessionDuration = EndTime - StartTime
+)
+// The 'scan' operator operates by running over ordered event records (as indicated by "order by Timestamp asc") 
+// and employs programmed sequence scanning logic with steps. Each step contains a predicate (condition) and 
+// may include several assignments that update the 'scan's state. This state is defined using the "declare()" clause and 
+// proves extremely useful for preserving calculation results and sharing them between steps. 
+// It's not limited to primitive types and can include dynamic arrays and dynamic property bags as well
+
+// Good luck, we're count()ing on you.
