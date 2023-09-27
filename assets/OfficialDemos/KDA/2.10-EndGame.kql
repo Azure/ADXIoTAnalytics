@@ -23,7 +23,7 @@
 
 
 KuandaLogs
-| take 10
+| take 1000
 
 
 // partition
@@ -31,7 +31,7 @@ KuandaLogs
 // calc the time between events per detective.
 KuandaLogs
 | where DetectiveId endswith '11' // Just a sample of the data.
-| partition hint.strategy=native by DetectiveId // has lots of unique keys
+| partition hint.strategy=native by DetectiveId
 (
     order by Timestamp asc 
     | extend Diff = Timestamp - prev(Timestamp)
@@ -45,8 +45,8 @@ KuandaLogs
 | partition hint.strategy=native by DetectiveId
 (
     order by Timestamp asc 
-    | scan declare(FirstActivity:string, LoginTime:datetime) with (
-        step start output=none: Message has 'User entered the system' => LoginTime=Timestamp; 
+     | scan declare(FirstActivity:string, LoginTime:datetime) with (
+        step start output=none: Message has 'User entered the system' => LoginTime=Timestamp;
         step s2:
             Timestamp - start.LoginTime < 10min and Message !has 'User entered the system' 
             =>  FirstActivity = Message, LoginTime = start.LoginTime;
@@ -81,18 +81,6 @@ KuandaLogs
 
 // Good luck, we're count()ing on you.
 
-let Traces = datatable(EventText: string)
-    [
-    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=23, lockTime=02/17/2016 08:40:01, releaseTime=02/17/2016 08:40:01, previousLockTime=02/17/2016 08:39:01)",
-    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=15, lockTime=02/17/2016 08:40:00, releaseTime=02/17/2016 08:40:00, previousLockTime=02/17/2016 08:39:00)",
-    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=20, lockTime=02/17/2016 08:40:01, releaseTime=02/17/2016 08:40:01, previousLockTime=02/17/2016 08:39:01)",
-    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=22, lockTime=02/17/2016 08:41:01, releaseTime=02/17/2016 08:41:00, previousLockTime=02/17/2016 08:40:01)",
-    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=16, lockTime=02/17/2016 08:41:00, releaseTime=02/17/2016 08:41:00, previousLockTime=02/17/2016 08:40:00)"
-];
-Traces  
-| parse EventText with * "resourceName=" resourceName ", totalSlices=" totalSlices: long * "sliceNumber=" sliceNumber: long * "lockTime=" lockTime ", releaseTime=" releaseTime: date "," * "previousLockTime=" previousLockTime: date ")" *  
-| project resourceName, totalSlices, sliceNumber, lockTime, releaseTime, previousLockTime
-
 
 KuandaLogs
 | where Message has 'encryption'
@@ -113,41 +101,55 @@ KuandaLogs
 | where DetectiveId =='kvc2ac0c1fdbe22ec157c8'
 | order by Timestamp asc
 
-Operation id=7f94cf8292d874cf started ('CaseAssigned'). Captured user encryption token: 'vjma'.
-Dekrypt(@'mbNYouohoQThoQKpoQNeou5eobUqoQUYoQUYozJ\N[hO9m0T9nZbVPjvVPN5ciR4\PjqVm159mX5VPjDMENqsgX51vO3MgY5\vp5MPRb\HZhFm\D9PlCNWAOcgZbVPjvVPjbNBl3N[zSlHZYciAuVPSbMEjbNBl3NWzvMvCTNBlkVPSCNBS0cElCMnZk9mI4cD[=', strcat_array(<active-user-encryption-tokens>, '')) for decoding.
-
 print Message=@"mbNYouohoQThoQKpoQNeou5eobUqoQUYoQUYozJ\N[hO9m0T9nZbVPjvVPN5ciR4\PjqVm159mX5VPjDMENqsgX51vO3MgY5\vp5MPRb\HZhFm\D9PlCNWAOcgZbVPjvVPjbNBl3N[zSlHZYciAuVPSbMEjbNBl3NWzvMvCTNBlkVPSCNBS0cElCMnZk9mI4cD[=", Key=strcat('qehswdmpvjma')
 | invoke Dekrypt()
+
+[2023-09-08T02:28:30.0000000Z] Kuanda server returned an error... Cmon, we must migrate our servers to AMD processors to avoid these system halts!
 
 
 // now I need all the enkrypted messages by DetectiveId and their active keys upto the enk msg.
 // partition & scan
-
-let affected = KuandaLogs | where Message has 'Dekrypt' | distinct DetectiveId;
 KuandaLogs
-| where DetectiveId in (affected)
-| partition hint.strategy=native by DetectiveId // has lots of unique keys
-(
-    order by Timestamp asc 
-    | extend Diff = Timestamp - prev(Timestamp)
-)
-| where Diff <= timespan(10m)
-| parse Message with * "@'" kryptmsg:string "'" *
-
-
-let affected = KuandaLogs | where Message has 'Dekrypt' | distinct DetectiveId;
-KuandaLogs
-| where DetectiveId in (affected)
+// | where DetectiveId == "kvc2ac0c1fdbe22ec157c8"
 | partition hint.strategy=native by DetectiveId
 (
     order by Timestamp asc 
-     | scan with_match_id=id  declare(StartTime:datetime, EndTime:datetime) with (
-        step start output=none: 
-			Message has 'Dekrypt' or Message has 'User session reset' => StartTime = Timestamp;
+    | scan with_match_id = SessionId declare(StartTime:datetime, EndTime:datetime, Message: string) with (
+        step start output=none:
+            Message has 'User entered the system' or Message has 'User session reset' => StartTime = Timestamp;
+        step collectTokens output=all:
+            Timestamp > start.StartTime and Message has 'Captured user encryption token' or Message has 'token for this operation is disposed';
         step completed output=last:
-			(Timestamp-start.StartTime > 10min) => 
-			StartTime = start.StartTime, EndTime = Timestamp;
+            Message has 'Sending an encrypted message'
+            and (Timestamp > start.StartTime) =>
+            StartTime = start.StartTime, EndTime = Timestamp;
     )
-    | order by id asc, Timestamp asc
-    | extend SessionDuration = EndTime - StartTime
+    | order by SessionId asc, Timestamp asc
+    | extend token = extract(@"token: '(.*)\'." , 1, Message), OperationId=extract(@"Operation id=([\w\d]*)", 1, Message)
+    | summarize any(*), count() by OperationId, SessionId, DetectiveId
+    | where count_ < 2
+    | summarize make_list_if(any_token, isnotempty(any_token)), any(*) by SessionId, DetectiveId
+    | extend Key = strcat_array(list_any_token, "")
+    | extend Message = extract(@"Dekrypt\(@\'(.*)\'," , 1, any_any_Message)
 )
+| where any_any_Message has "Sending an encrypted message"
+| invoke Dekrypt()
+| project Result
+// | where Result has 'BUGBUG'
+
+[2023-09-10T02:12:30.0000000Z] TODO [BUGBUG]: Validate: bitset_count_ones(hash_many('kvc178c8b4935bed382529', tostring($user_answer))) < 54! Leaving as-is for now, the chance it will actually happen is very low. (O boy, these non-AMD processors are literally melting down on invalid instruction sets!)
+[2023-09-22T03:48:30.0000000Z] TODO [BUGBUG]: Validate: bitset_count_ones(hash_many('kvc2f916b75d21076bc100', tostring($user_answer))) < 54! Leaving as-is for now, the chance it will actually happen is very low. (O boy, these non-AMD processors are literally melting down on invalid instruction sets!)
+
+//manual
+print answer=bitset_count_ones(hash_many('kvc178c8b4935bed382529', tostring(1))) < 54
+
+print answer=bitset_count_ones(hash_many('kvc178c8b4935bed382529', tostring(1000))) >= 54
+
+
+//brute force integers, till count >= 54
+range answer from 0 to 2000000000 step 1
+| extend result = bitset_count_ones(hash_many('kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net', tostring(answer)))
+| where result >= 54
+| project answer, result
+| take 10
+//76423587
