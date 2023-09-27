@@ -1,0 +1,168 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('KustoDetectiveAgency')
+
+// Catchy Run
+
+// Krypto who runs in Barcelona 3-4/week, 8-12km
+// we're given a decrypted msg
+
+// Everywhere in Barcelona, you'll find buildings by famous architects like Antoni Gaudi and Joseph Cadafalch
+// The real gem of the city is La Sagrada Familia
+
+.execute database script <|    
+.create-or-alter function Dekrypt(T:(Message:string, Key:string)) { 
+    let lx=array_concat(range(48, 57, 1), range(65, 92, 1), range(97, 122, 1));
+    let uc = (_s:string) { unicode_codepoints_from_string(hash_sha256(_s))};
+    T 
+    | extend c1 = uc(tolower(Key)), c2 = uc(toupper(Key))
+    | mv-apply with_itemindex=i l=lx to typeof(int), c=c1 to typeof(int) on (order by c asc, i asc | summarize c1=unicode_codepoints_to_string(make_list(l)))
+    | mv-apply with_itemindex=i l=lx to typeof(int), c=c2 to typeof(int) on (order by c asc, i asc | summarize c2=unicode_codepoints_to_string(make_list(l)))
+    | extend Result = coalesce(base64_decode_tostring(translate(c1, c2, Message)), "Failure: wrong key")
+    | project-away c1, c2
+}
+.create-or-alter function SecretCodeToKey(T:(c1:long,c2:long,c3:long,c4:long))
+{
+    let magic_const = toscalar(T | summarize sum(c1)*sum(c2)/sum(c3)+sum(c4));
+    let key = toscalar(T
+    | summarize list = make_list(pack_array(c1, c2, c3, c4))
+    | project key=unicode_codepoints_to_string(series_add(list, magic_const)));
+    key
+}
+.create-merge table Runs (Timestamp:datetime, RunnerID:string, Distance:double, Duration:timespan, StartLat:double, StartLon:double)
+.ingest async into table Runs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c8run/log_00000.csv.gz')
+.ingest into table Runs (@'https://kustodetectiveagency.blob.core.windows.net/kda2c8run/log_00001.csv.gz')
+
+
+// hints
+// 1. Wondering about the city code? Perhaps, wandering the city wonders can help.
+// 2. he encrypted message may shed a light on unique behavior or pattern. Can you sport what is it?
+// 3. Got multiple locations and not sure which one is correct? Sometimes, even the best detective needs to visit the location in person to get a street view and solve the case. 🕵️‍🔎
+
+
+//helper function
+let VirtualTourLink = (lat:real, lon:real) {
+    print Link = strcat('https://www.google.com/maps/@', lat, ',', lon, 
+        ',3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192')
+};
+VirtualTourLink(lat, lon)
+
+
+Runs
+| take 10
+
+
+// 3-4 times a week and running 8-12 kms each time
+Runs
+| where Distance between(8 .. 12)
+| summarize count() by RunnerID, bin(Timestamp,7d)
+| where count_ between (3 .. 4)
+
+
+
+
+
+// Secret Message intercepted , https://en.wikipedia.org/wiki/Magic_square
+let city_code=datatable(c1:long,c2:long,c3:long,c4:long)
+// [1, ?, ?,  4, 
+//  ?, 7, 6,  ?,
+//  8, ?, 10, 5,
+//  ?, 2, ?, 15];  // main diagonal sums to 33! 
+// I've been to La Sagrada Familia. https://en.wikipedia.org/wiki/Sagrada_Fam%C3%ADlia
+// https://blog.sagradafamilia.org/en/divulgation/the-magic-square-the-passion-facade-keys-to-understanding-it/
+[1, 14, 14,  4,
+ 11, 7, 6,  9,
+ 8, 10, 10, 5,
+ 13, 2, 3, 15];
+print Key=SecretCodeToKey(city_code), Message=
+@'0SOHpSdTgidfqXFOYeIOjktOjXFcjktPjwzHgSABgsctZknJZKfEjBAygipOgS\\pBNEjknCVedTpSdyjk7EZKFHVSOa8i7E8SOCZedfgSOTgSA'
+@'tYPFaYB4TjXFHZ[\OVkNT17mzgSv\VPFHjknHjKFnVedygSvuVBvOYBxDgS4HgiztVkAyYyFujPFupwgEpiztjKFmVaIOVaImV[nHgS\\pBNEYB'
+@'d\Z[\OjXFb8SNEjk4yYyFujPFb8SNEKbIFqEbo7adbgSjOZwgEVBAbqXFc6KFDVeO\VXFCV[tyZkIOYyfEjBAygipOgiv5Zk2DgSnupXFeZwjOY'
+@'PFBYBAcgSAtYPFfZwI5gKFzjPF\VaOb8SOTjyfEp[NEY[\\VSfE8knbjknH8kjngSAtYPFOjBjuYaIHgidTpSODgiI5jKFqIssEZeztVkzDjwME'
+@'ZBdTjk4b8XFupwgEjBdOpXxvXJJEZ[4TVBAbgiv5ZwzOgiIuVyFcpkv5gS4bgiI58wMEpSOcjKfEZadbgizOYe7EZwvHpwzOjXfEp[NEZwzOgiz'
+@'tVBnmVBYEVedygXzHVkAQjKFbjwvbYygDgSzupSEEjBOapwz\pSO[jk2ngS4TjXF2pkObjKFD8wIOYB4DViJT17mN8Sdngiv5Zk2DgSdxYSAHjK'
+@'Fb8SNEKbIFzeMEp[d\8[nOYevOYyF\VB7E8SdyZk2JgSObYyFOYSOCgSIup[nBZk2DqEbo17mUVeYDgS2OpXFtYyF\jSIyjwvHgiI5jKFcZwIbj'
+@'wgEV[ZEVwJEp[dDVXtPjkOTjyxEKKFtVBIOYavbZknJgiI5Zw7EpS\OYBNE8wMEZKFaYBd\pXFJjk4DgSABgSvtYBOuY[Ob6KFyjkp\YBImVBYE'
+@'VwJEY[4BjwInqPrvXJ2OpXFcjKF\YevtYBNE6kAtqXFmpXFeZwMEZk2DgSsEVk4bpSdygSABgSOcYSdCZ[4PVSNEpSOc8knaqPFUVyFJVedPpXF'
+@'c6KFCV[nTjkvb8knagSjD8kp5pXFeZwMEZkxEjw\fjwzmjknCjKFujPF\gS2mjBdb8ktOg7bodSAugSz\jXFc6KFDpkpaZkpOgSj\8k2OjXFbVy'
+@'FlV[OTgStOgSATgiI58wMEpS\y8k2D8knagSmupwzTjwJ\g15m175vXJztpXFBjk4ygSnupXfEVwJEjazmjknJYyfEVSd\pBOTjyFb8SOTjeMEp'
+@'SREZ[\\VBvOgSOHgSnupXFc6KFHpiODjKxEKKF5ZwjOgS4HY[dcZB2OjXF\giIOZkbEV[ZEVSAnZkfEZBAJ6kptZwzJYyfvXap5VyFcVejOgipm'
+@'pSEEVkNEVSOQjKFOVidH8wjOgiF5ZknbV[tHqXFOVavtYBOTjyFc6KFmVajmVBvmZBOD8wInqPFFpXF\VaJEj[O[jkxEpSOcjKfEZw7EVSd\Ye7'
+@'EpipugSABgiI5jkbEjSOHZezOjwID67boY[\\jSAegStngSd[jwzngStupBNDgSd[jkxEjidy8knagStngSdx8SODZwz\pSOTjyFypknHgiI5YB'
+@'Atj[EEpS\OgSvmpiJTg4Iypk2nqXFzgSjOjkfEpknbVedC8S4PVSNTgs4TjXFDjw7EVkNEpSdDVXFnVeND17mb8SOHgSvmpiJE8wMEZKF58kIJj'
+@'kxEj[dcgKFzpXFujBjOYaMEZkxEZkztVBI\VBvOgSABgSt\YajOVSAtYyFHYSAbYyFe8SdyjKFuVBNEZ[4TgSOTjidDj[NE8kxEZKFyjkjyjwv5'
+@'8knagiv5ZkcOgS4BpSdy17mCV[n2pkdy8knagSsEZazOZwI5pS4Q8knag1sfKyFypkxTgsObgSOHgSsEYSdyjBdCpXFPVSdTjXFujPFc8wvC8SO'
+@'OjPF\VB7EYBdlpwjOVB4b8kATqXF\gSIOVSOa8iIBpkfEZ[ATZ[ACpSOuVPFb8S4bgSjtjk2HgStngivbYBdTjeI5qEbo17m0VyfEVwJEjBdDVS'
+@'AegizujedOYyfEVSdbgidHgScOjwrEVedygSdnjwMEjBOxjk7EV[xEpS\OgiI\YBpOpXxEKKFe8k2DgizOpBd\VXFcVezOgSIOpS4mViMEZkzup'
+@'w7EVedygiFDZknHgSOTgSItjKFb8ktOqPrvXOFyjwF\YBNE6kAtYavOVijOYyFbVyFe8wITjwvHgiI5jKFHYSdCpS4Cpk2\YPFJVepTjB4DVXFu'
+@'jPFb8SNEKbIFqXF\YyFejKFyjk2OVaIDjwvHViJEjizmVSfE8knbVyFmpiMEZ[AyjKF\pXFBpk2DgivfjkdJg7bogrboKeznYiIu'
+| invoke Dekrypt()
+| project Result
+
+
+Listen up, esteemed members of Kuanda, for we have encountered a slight hiccup in our grand scheme.
+I can sense your concern, as rumors of our true intentions have reached the ears of the KDA.
+But fear not, my loyal comrades, for we shall not waver from our path! If anything, we shall intensify our efforts until the KDA crumbles beneath our feet.
+I cannot share too much at this time, but rest assured, we are running our "smoke tests", both figuratively and quite literally.
+They shall expose the KDA's weaknesses and herald its epic downfall.
+
+Now, let us address the matter of my well-being. I understand that there is a great deal of curiosity regarding my safety. 
+Let me assure you, it was all a matter of impeccable timing. No doubt my connecting flight was an experience of a lifetime!
+Too bad my luggage failed to join me on this thrilling journey! :)
+
+But fear not, my friends, leaving things to chance is not my style. I have assembled a team of loyal bodyguards,
+who move with me like elusive phantoms, ensuring my invincibility. At any given time, at least two of them discreetly
+shadow my every move, even during my exhilarating runs through the city. Truly, I feel untouchable. And let me tell you,
+this city is a hidden gem! It offers an abundance of marvelous spots where one can indulge in a refreshing shake after
+conquering a breathtaking 10K run. It is a perfect blend of mischief and rejuvenation, a delightful concoction that fuels my strength.
+
+So, my fellow rogues, let us keep our eyes fixed on the target. I will reveal more details about our plans in due time. 
+Prepare yourselves to witness the spectacular downfall of the KDA, as we relentlessly drill into its core at full speed!
+ 
+Krypto
+
+// Keys
+// 1. Runs with 2 additional bodyguards out of a bodyguards team
+// 2. Likes juice
+// 3. Ran once at least 10 km
+
+// s2_23	        SuspiciousPlaceVirtualTourLink	                                                                                                    RunnersCount	StartLon	        StartLat
+// 12a4a2fe13eec	https://www.google.com/maps/@41.384674548291147,2.1833511308887219,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.18335113088872	41.3846745482911 <<< This one
+// 12a4bcb4c63a4	https://www.google.com/maps/@41.42082705755436,2.207483439374892,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.20748343937489	41.4208270575544
+// 12a4987a6a64c	https://www.google.com/maps/@41.39020078992019,2.1387068413889365,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.13870684138894	41.3902007899202
+// 12a4bcb4f9c04	https://www.google.com/maps/@41.42243413743291,2.20699052453797,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.20699052453797	41.4224341374329
+// 12a4bcec7030c	https://www.google.com/maps/@41.445860190200757,2.2007983032868578,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.20079830328686	41.4458601902008
+// 12a4bce7f20e4	https://www.google.com/maps/@41.44102526642973,2.1931850715475798,3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192	3	            2.19318507154758	41.4410252664297
+let RunnersCountsInRange = 
+Runs
+| summarize RunsCount = count() by week_of_year(Timestamp), RunnerID
+// Runs 3-4 times a week, allowing one miss for bodyguards (they are a team, assuming they are having shifts and not as die-hard runners as Krypo)
+| where RunsCount between (2 .. 4)
+| distinct RunnerID
+;
+let PotentialRunners = 
+Runs
+| join kind=inner RunnersCountsInRange on RunnerID
+| summarize DistancesList = make_list(Distance) by RunnerID
+| extend DistancesStats = series_stats_dynamic(DistancesList)
+| extend MinDistance = toreal(DistancesStats['min'])
+// Runs between 8-12 km
+| where MinDistance between (8 .. 12)
+| extend MaxDistance = toreal(DistancesStats['max'])
+// Ran once 10 km at least
+| where MaxDistance between (10 .. 12)
+| distinct RunnerID;
+let VirtualTourLink = (lat:real, lon:real) {
+    strcat('https://www.google.com/maps/@', lat, ',', lon, 
+        ',3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192')
+};
+//
+let SuspiciousPlaces = 
+Runs
+| where RunnerID in (PotentialRunners)
+| extend s2_23=geo_point_to_s2cell(StartLon, StartLat, s2_precision = 23)
+| extend SuspiciousPlaceVirtualTourLink = VirtualTourLink(StartLat, StartLon)
+// Same position
+| summarize take_any(SuspiciousPlaceVirtualTourLink), RunnersCount=dcount(RunnerID), StartLon=take_any(StartLon), StartLat=take_any(StartLat) by s2_23
+// Krypto has 2 bodyguards, so total of 3 people
+| where RunnersCount == 3
+;
+SuspiciousPlaces
