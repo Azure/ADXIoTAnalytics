@@ -80,3 +80,74 @@ KuandaLogs
 // It's not limited to primitive types and can include dynamic arrays and dynamic property bags as well
 
 // Good luck, we're count()ing on you.
+
+let Traces = datatable(EventText: string)
+    [
+    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=23, lockTime=02/17/2016 08:40:01, releaseTime=02/17/2016 08:40:01, previousLockTime=02/17/2016 08:39:01)",
+    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=15, lockTime=02/17/2016 08:40:00, releaseTime=02/17/2016 08:40:00, previousLockTime=02/17/2016 08:39:00)",
+    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=20, lockTime=02/17/2016 08:40:01, releaseTime=02/17/2016 08:40:01, previousLockTime=02/17/2016 08:39:01)",
+    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=22, lockTime=02/17/2016 08:41:01, releaseTime=02/17/2016 08:41:00, previousLockTime=02/17/2016 08:40:01)",
+    "Event: NotifySliceRelease (resourceName=PipelineScheduler, totalSlices=27, sliceNumber=16, lockTime=02/17/2016 08:41:00, releaseTime=02/17/2016 08:41:00, previousLockTime=02/17/2016 08:40:00)"
+];
+Traces  
+| parse EventText with * "resourceName=" resourceName ", totalSlices=" totalSlices: long * "sliceNumber=" sliceNumber: long * "lockTime=" lockTime ", releaseTime=" releaseTime: date "," * "previousLockTime=" previousLockTime: date ")" *  
+| project resourceName, totalSlices, sliceNumber, lockTime, releaseTime, previousLockTime
+
+
+KuandaLogs
+| where Message has 'encryption'
+| parse Message with * "Operation id=" operationId:string 
+| take 1000
+//2023-09-12T23:53:30Z	kvc727bffe9221c465a592	Sending an encrypted message, will use Dekrypt(@'tBhku8uLuQULuDTou8udZDuduBiluQikuQiku4ERh4vV5\LEmeI9RGZYIXiCr[08ZBh[5e0e0DU6u848ZQ575DoyuXI95tyBR\16I6ijhO48ROY\0nv7I\16hO1l5[TyIP2Em\S9ROWj0tyBhO4l0KvB0tyUrtyChP2g0tA9ROJ9n[1Vme2VFXvh5GvkcnverGZgrtyChp==', strcat_array(<active-user-encryption-tokens>, '')) for decoding.
+
+KuandaLogs
+| where Message has 'decoding'
+| parse Message with * "Operation id=" operationId:string 
+| take 1000
+// 192 rows
+
+// kvc2ac0c1fdbe22ec157c8, 2023-09-08T02:28:30Z
+// Sending an encrypted message, will use Dekrypt(@'mbNYouohoQThoQKpoQNeou5eobUqoQUYoQUYozJ\N[hO9m0T9nZbVPjvVPN5ciR4\PjqVm159mX5VPjDMENqsgX51vO3MgY5\vp5MPRb\HZhFm\D9PlCNWAOcgZbVPjvVPjbNBl3N[zSlHZYciAuVPSbMEjbNBl3NWzvMvCTNBlkVPSCNBS0cElCMnZk9mI4cD[=', strcat_array(<active-user-encryption-tokens>, '')) for decoding.
+
+KuandaLogs
+| where DetectiveId =='kvc2ac0c1fdbe22ec157c8'
+| order by Timestamp asc
+
+Operation id=7f94cf8292d874cf started ('CaseAssigned'). Captured user encryption token: 'vjma'.
+Dekrypt(@'mbNYouohoQThoQKpoQNeou5eobUqoQUYoQUYozJ\N[hO9m0T9nZbVPjvVPN5ciR4\PjqVm159mX5VPjDMENqsgX51vO3MgY5\vp5MPRb\HZhFm\D9PlCNWAOcgZbVPjvVPjbNBl3N[zSlHZYciAuVPSbMEjbNBl3NWzvMvCTNBlkVPSCNBS0cElCMnZk9mI4cD[=', strcat_array(<active-user-encryption-tokens>, '')) for decoding.
+
+print Message=@"mbNYouohoQThoQKpoQNeou5eobUqoQUYoQUYozJ\N[hO9m0T9nZbVPjvVPN5ciR4\PjqVm159mX5VPjDMENqsgX51vO3MgY5\vp5MPRb\HZhFm\D9PlCNWAOcgZbVPjvVPjbNBl3N[zSlHZYciAuVPSbMEjbNBl3NWzvMvCTNBlkVPSCNBS0cElCMnZk9mI4cD[=", Key=strcat('qehswdmpvjma')
+| invoke Dekrypt()
+
+
+// now I need all the enkrypted messages by DetectiveId and their active keys upto the enk msg.
+// partition & scan
+
+let affected = KuandaLogs | where Message has 'Dekrypt' | distinct DetectiveId;
+KuandaLogs
+| where DetectiveId in (affected)
+| partition hint.strategy=native by DetectiveId // has lots of unique keys
+(
+    order by Timestamp asc 
+    | extend Diff = Timestamp - prev(Timestamp)
+)
+| where Diff <= timespan(10m)
+| parse Message with * "@'" kryptmsg:string "'" *
+
+
+let affected = KuandaLogs | where Message has 'Dekrypt' | distinct DetectiveId;
+KuandaLogs
+| where DetectiveId in (affected)
+| partition hint.strategy=native by DetectiveId
+(
+    order by Timestamp asc 
+     | scan with_match_id=id  declare(StartTime:datetime, EndTime:datetime) with (
+        step start output=none: 
+			Message has 'Dekrypt' or Message has 'User session reset' => StartTime = Timestamp;
+        step completed output=last:
+			(Timestamp-start.StartTime > 10min) => 
+			StartTime = start.StartTime, EndTime = Timestamp;
+    )
+    | order by id asc, Timestamp asc
+    | extend SessionDuration = EndTime - StartTime
+)
