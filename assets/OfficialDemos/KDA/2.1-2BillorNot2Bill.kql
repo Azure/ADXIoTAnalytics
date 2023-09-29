@@ -1,0 +1,148 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('kustodetectiveagency')
+
+// To bill or not to bill?
+
+
+.execute database script <|
+// The script takes ~20seconds to complete ingesting all the data.
+.set-or-replace Costs <| 
+    datatable(MeterType:string, Unit:string, Cost:double) [
+     'Water', 'Liter', 0.001562, 
+     'Electricity', 'kwH', 0.3016]
+.create-merge table Consumption (Timestamp:datetime , HouseholdId:string, MeterType:string, Consumed:double)
+.ingest into table Consumption (@'https://kustodetectiveagency.blob.core.windows.net/kda2c1taxbills/log_00000.csv.gz')
+.ingest into table Consumption (@'https://kustodetectiveagency.blob.core.windows.net/kda2c1taxbills/log_00001.csv.gz')
+.ingest into table Consumption (@'https://kustodetectiveagency.blob.core.windows.net/kda2c1taxbills/log_00002.csv.gz')
+
+
+Costs
+| take 10
+
+Consumption
+| take 10
+
+
+Consumption
+| summarize min(Timestamp),max(Timestamp)
+
+
+
+SELECT SUM(Consumed * Cost) AS TotalCost
+FROM Costs
+JOIN Consumption ON Costs.MeterType = Consumption.MeterType
+
+//35637875.197706088
+
+
+Costs
+| join kind=inner Consumption on MeterType 
+| summarize TotalCost=sum(Consumed*Cost)
+
+// 35637875.197705261
+
+Costs
+| join kind=inner Consumption on MeterType 
+| distinct *
+| summarize TotalCost=sum(Consumed*Cost)
+
+
+// 35420282.611010261
+
+Consumption  
+| summarize TotalConsumed = sum(Consumed) by MeterType  
+| lookup Costs on MeterType  
+| extend TotalCost = TotalConsumed*Cost  
+| summarize sum(TotalCost) 
+
+//35637875.197707824
+
+Consumption 
+| where MeterType == 'Water' 
+| summarize WaterConsumed=sum(Consumed) by HouseholdId 
+| top 1 by WaterConsumed
+
+
+Consumption  
+| where MeterType == 'Electricity' 
+| summarize c=sum(Consumed) by bin(Timestamp, 1d) 
+| top 1  by c desc
+| project datetime_part('day',Timestamp)
+
+
+// How many electricity readings were taken in total and what was the highest value?
+Consumption 
+| where MeterType == 'Electricity' 
+| where HouseholdId =='DTI2F75B61EE7818104'
+| summarize Readings=count(), HighestValue=max(Consumed)
+
+
+
+
+
+Costs
+| join kind=inner Consumption on MeterType 
+| where HouseholdId =='DTI32F610D3CB9C6098'
+| make-series tc=max(Consumed) on Timestamp step (1d)
+// | where Timestamp =
+| extend an=series_decompose_anomalies(tc)
+| render anomalychart with(anomalycolumns=an)
+
+
+Costs
+| join kind=inner Consumption on MeterType 
+// | where HouseholdId =='DTI32F610D3CB9C6098'
+// | where MeterType =='Water'
+// | distinct *
+// | summarize count() by MeterType1 //why 35 Electricity & 32 water?
+// | summarize count() by datetime_part('day',Timestamp), MeterType
+//| summarize count() by MeterType
+// | summarize dcount(Timestamp) by MeterType
+// | summarize count() by Timestamp, MeterType
+// | where Timestamp =='2023-04-08T00:00:00Z'
+| summarize take_any(*) by HouseholdId, MeterType
+| extend t=Cost*Consumed
+| summarize sum(t)
+// | where count_ > 1
+
+113761.7686517242
+
+1129144.4614910341
+
+Consumption  
+ | summarize TotalConsumed = sum(Consumed) by MeterType  
+ | lookup Costs on MeterType  
+ | extend TotalCost = TotalConsumed*Cost  
+ | summarize sum(TotalCost) 
+
+
+Consumption  
+// | where MeterType == 'Water' 
+| summarize c=sum(Consumed) by bin(Timestamp, 1d), MeterType
+| render timechart
+
+Costs
+| join Consumption on MeterType 
+// | distinct *
+// | summarize mc=max(Consumed) by Cost, MeterType, HouseholdId
+// | where HouseholdId =='DTI32F610D3CB9C6098'
+| summarize max(Consumed) by HouseholdId, MeterType, Consumed, Cost, Timestamp
+| extend s=(Consumed*Cost)
+| summarize sum(s)
+// 1497385.3341395266
+
+1200306.6569593037
+
+
+Consumption 
+// | where MeterType == 'Electricity' 
+| distinct *
+| summarize Readings=count(), HighestValue=max(Consumed)
+
+Consumption  
+| summarize max(Consumed) by MeterType, HouseholdId, Timestamp
+| summarize TotalConsumed = sum(max_Consumed) by MeterType
+| lookup Costs on MeterType 
+| extend TotalCost = TotalConsumed*Cost  
+| summarize sum(TotalCost) 
+
+// 35420883.07239987
