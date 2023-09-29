@@ -1,0 +1,35 @@
+#connect cluster('kvc43f0ee6600e24ef2b0e.southcentralus').database('kustodetectiveagency')
+
+// Who earned most money?
+
+
+.execute database script <|
+// Create a table for the telemetry data:
+.create table DetectiveCases(Timestamp:datetime, EventType:string, DetectiveId:string, CaseId: string, Properties:dynamic)
+// Load the data:
+.ingest async into table DetectiveCases (@'https://kustodetectiveagency.blob.core.windows.net/kda2start/log_00000.csv.gz')
+.ingest async into table DetectiveCases (@'https://kustodetectiveagency.blob.core.windows.net/kda2start/log_00001.csv.gz')
+.ingest into table DetectiveCases (@'https://kustodetectiveagency.blob.core.windows.net/kda2start/log_00002.csv.gz')
+
+DetectiveCases
+| count
+
+
+//Who is the detective that earned most money in 2022?
+
+DetectiveCases
+| summarize min(Timestamp),max(Timestamp)
+
+
+//Lets go!
+let b = DetectiveCases 
+| extend Bounty=tolong(Properties.Bounty)
+| where Bounty >0;
+DetectiveCases
+| where EventType=='CaseSolved'
+| join b on CaseId
+| summarize sum(Bounty) by DetectiveId
+| top 1 by sum_Bounty
+
+// kvc12a22e9e9e65c1694f1
+
