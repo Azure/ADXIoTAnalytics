@@ -1,3 +1,4 @@
+# ref: https://learn.microsoft.com/azure/time-series-insights/time-series-insights-authentication-and-authorization#application-registration
 
 # Define Variables
 $AppId = "redated-redacted-redacted-redacted-redacted"
