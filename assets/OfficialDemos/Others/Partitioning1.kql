@@ -1,0 +1,94 @@
+.show tables details 
+
+.show database extents partitioning statistics 
+
+.show table BIAzureAdditionalRawCounterFiveMinuteMsitScus_partitioned policy partitioning
+
+BIAzureAdditionalRawCounterFiveMinuteMsitScus_partitioned
+| summarize count() by CounterName
+| render linechart 
+
+
+
+// lets have a look at another table. 
+// the performance counter table
+BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+| take 10 
+
+BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+| count
+
+// 30K time series of performance counters data over a month
+// 35b records overall
+// Find the top 3 machines with highest CPU and their behavior over a day
+// over millions of timeseries in the table
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d
+  | where CounterName == @"\Processor(_Total)\% Processor Time";
+let Instances = toscalar(
+LookupInput
+| summarize max_CPU=max(CounterValue) by RoleInstance
+| top 3 by max_CPU desc 
+| summarize makelist(RoleInstance));
+LookupInput
+| where RoleInstance in (Instances)
+| summarize avg_CPU=avg(CounterValue) by RoleInstance, bin(TIMESTAMP, 5m)
+| project TIMESTAMP, RoleInstance, avg_CPU 
+| render timechart 
+
+//
+// Are there other machines in that PowerBI Cluster that exhibit similar behaviour?
+// Detect jump shapes across all 98 instances
+//
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d;
+LookupInput
+| where CounterName == @"\Processor(_Total)\% Processor Time"   
+| make-series cval=avg(CounterValue) default=0 on TIMESTAMP in range(startTime, startTime+1d-15m, 15m) by RoleInstance 
+| extend shapes=series_shapes(cval, false) //allows me to very quickly find similar paterns
+| extend jump=todouble(shapes.jump)
+| where  jump > 0.3
+| render timechart 
+
+
+#connect cluster("https://Demo12.westus.kusto.windows.net").database("sqlbi")
+
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d
+  | where CounterName == @"\Processor(_Total)\% Processor Time";
+let Instances = toscalar(
+LookupInput
+| summarize max_CPU=max(CounterValue) by RoleInstance
+| top 3 by max_CPU desc 
+| summarize make_list(RoleInstance));
+LookupInput
+| where RoleInstance in (Instances)
+| summarize avg_CPU=avg(CounterValue) by RoleInstance, bin(TIMESTAMP, 5m)
+| project TIMESTAMP, RoleInstance, avg_CPU 
+| render timechart 
+
+.show table BIAzureAdditionalRawCounterFiveMinuteMsitScus_partitioned policy partitioning
+
+let startTime = datetime(2015-03-31 14:00);
+let LookupInput =
+  BIAzureAdditionalRawCounterFiveMinuteMsitScus_partitioned 
+  | where TIMESTAMP >= startTime and TIMESTAMP < startTime + 1d
+  | where CounterName == @"\Processor(_Total)\% Processor Time";
+let Instances = toscalar(
+LookupInput
+| summarize max_CPU=max(CounterValue) by RoleInstance
+| top 3 by max_CPU desc 
+| summarize make_list(RoleInstance));
+LookupInput
+| where RoleInstance in (Instances)
+| summarize avg_CPU=avg(CounterValue) by RoleInstance, bin(TIMESTAMP, 5m)
+| project TIMESTAMP, RoleInstance, avg_CPU 
+| render timechart 
+
+
