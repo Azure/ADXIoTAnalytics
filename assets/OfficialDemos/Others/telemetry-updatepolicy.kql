@@ -1,0 +1,46 @@
+.create table telemetryraw (TimeseriesId:string, TimeseriesName:string, ServerTimeStamp:long)
+
+// TimeseriesId == '1d4037bc-xxxx-xxxx-xxxx-xxxxxxxxx'
+
+.create table telemetry (TimeseriesId:guid, TimeseriesName:string, ServerTimeStamp:datetime)
+
+.create-or-alter function transformtelemetryraw() { 
+  telemetryraw
+  | project TimeseriesId=toguid(TimeseriesId), TimeseriesName, ServerTimeStamp=unixtime_seconds_todatetime(ServerTimeStamp)
+}
+
+// update policy (mini-ETL / trigger)
+.alter table telemetry policy update @'[{ "IsEnabled": true, "Source": "telemetryraw", "Query": "transformtelemetryraw()", "IsTransactional": true}]'
+
+//silver
+telemetry
+| take 10
+
+//bronze
+telemetryraw
+| take 10
+
+.alter-merge table telemetryraw policy retention softdelete = 0s
+
+//simulate ingestion
+.ingest inline into table telemetryraw <|
+7391b0af-44a0-43cf-bd98-b15562737e04, MyTS1, 1700236800
+7391b0af-44a0-43cf-bd98-b15562737e04, MyTS1, 1700236900
+243660a1-9905-42b1-a687-f85cc810aa93, MyTS2, 1700236900
+243660a1-9905-42b1-a687-f85cc810aa93, MyTS2, 1700237000
+
+// .clear table telemetryraw data
+
+// .clear table telemetry data
+
+//silver
+telemetry
+| take 10
+
+telemetry
+| where TimeseriesId =='7391b0af-44a0-43cf-bd98-b15562737e04'
+| summarize arg_max(ServerTimeStamp,*) by TimeseriesName
+
+
+telemetry
+| summarize take_any(*)
