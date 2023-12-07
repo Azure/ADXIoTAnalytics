@@ -1,0 +1,41 @@
+// crude example using function in LAW, although its not true RLS, cause its not enabled on the entity as if it were residing in ADX. 
+
+//let IsManager=current_principal_is_member_of("aadgroup=managers@company.com");
+let IsManager =true;
+let Clear=Perf | where IsManager | distinct Computer;
+let Crypted=Perf | where not(IsManager) | distinct Computer | extend Computer=hash_sha256(Computer);
+union Clear, Crypted
+
+/////////////////
+// ADX example //
+/////////////////
+
+//Example of RLS statement
+.create-or-alter function RLSFunction() {
+  let IsManager=current_principal_is_member_of("aadgroup=managers@company.com");
+  let AllData=MyTable | where IsManager;
+  let PartialData=MyTable | where not(IsManager) and UserColumn==current_principal();
+  union AllData, PartialData
+}
+
+//and applied to a table
+.alter table MyTable policy row_level_security enable "RLSFunction()"
+
+
+// Basics:
+// + Evaluates a predicate based on AAD UPN or group membership and returns a restricted view of the underlying table.
+// + Access restriction logic sits in the database tier, rather than in application tier.
+// + Can't be enabled on a table with continuous data export, referenced by a query of an update policy, on which restricted view access policy is configured or another RLS policy is enabled.
+// Usage scenarios:
+// + Granting access to subset of data – e.g., we might want to restrict engineers to only app data they actively debug, or in a multitenant scenario to restrict tenants to see only their data in a shared table.
+// + Data Masking – e.g., PII data, only last four digits of credit card
+// https://docs.microsoft.com/azure/data-explorer/kusto/management/data-export/continuous-data-export
+// https://docs.microsoft.com/azure/data-explorer/kusto/management/updatepolicy
+// https://docs.microsoft.com/azure/data-explorer/kusto/management/restrictedviewaccesspolicy
+// https://docs.microsoft.com/azure/data-explorer/kusto/management/rowlevelsecuritypolicy 
+// Examples:
+// Limit access to a table, rows, and/or mask columns.
+// Slight increases the duration of an RLS query will normally consist of two parts:
+// + Membership checks in Azure Active Directory
+// + The filters applied on the data
+// + Can it be hacked using a rainbow table? I don't think so but lmk if you want to find out...
