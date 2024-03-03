@@ -3,8 +3,8 @@ $pkgroot = "C:\Microsoft.Azure.Kusto.Tools\tools\net5.0"
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Data.dll")
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
 
-$uri = "https://adxpm10774.eastus.kusto.windows.net;Fed=True"
-$db = "sentinel"
+$uri = "https://kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
+$db = "MyDatabase"
 $t = "Counter_raw"
 
 # https://aka.ms/adx.free 
