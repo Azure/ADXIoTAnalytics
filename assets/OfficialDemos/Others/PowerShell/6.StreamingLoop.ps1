@@ -21,7 +21,6 @@ $p = [Kusto.Ingest.KustoIngestionProperties]::new($db, $t)
 $p.Format = [Kusto.Data.Common.DataSourceFormat]::multijson
 
 while (1 -eq 1) {
-{
   Write-Output "This is an infinite loop. Press Ctrl+C to stop."
   
   # $p.IgnoreFirstRecord = $true
