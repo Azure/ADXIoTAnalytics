@@ -1,5 +1,5 @@
 #  dependencies
-$pkgroot = "C:\Microsoft.Azure.Kusto.Tools\tools\net5.0"
+$pkgroot = "C:\Microsoft.Azure.Kusto.Tools\tools\net6.0"
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Data.dll")
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
 
