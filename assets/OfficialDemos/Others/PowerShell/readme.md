@@ -19,6 +19,14 @@ Invoke-WebRequest -Uri https://nuget.org/api/v2/package/Microsoft.Azure.Kusto.To
 Expand-Archive .\Microsoft.Azure.Kusto.Tools.zip -Destination "C:\kustotools\" -Force
 Remove-Item .\Microsoft.Azure.Kusto.Tools.zip -force
 ```
+
+If you get unable to load Azure.Core then try these steps.
+```
+Invoke-WebRequest -Uri https://www.nuget.org/api/v2/package/Azure.Core/1.38.0 -OutFile Azure.Core.zip
+Expand-Archive .\Azure.Core.zip -Destination "C:\kustotools\azurecore\" -Force
+Remove-Item .\Azure.Core.zip -force
+```
+
 Install PowerShell 7: 
 ```
 winget install --id Microsoft.Powershell --source winget
