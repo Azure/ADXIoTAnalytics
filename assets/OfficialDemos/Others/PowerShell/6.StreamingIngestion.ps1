@@ -7,11 +7,13 @@ $uri = "https://adxpm10774.eastus.kusto.windows.net;Fed=True"
 $db = "sentinel"
 $t = "Counter_raw"
 
-# https://aka.ms/adx.free (upgrade to Azure cluster)
+# https://aka.ms/adx.free 
 # https://learn.microsoft.com/azure/data-explorer/ingest-data-streaming?tabs=azure-portal#enable-streaming-ingestion-while-creating-a-new-cluster
 # Run KQL:
 # .create table Counter_raw (Data:dynamic)
-# .alter table Counter_raw policy streamingingestion enable
+# .show table Counter_raw policy streamingingestion
+# .show database policy streamingingestion //if IsEnabled = true, table will inherit database policy.
+# .alter table Counter_raw policy streamingingestion enable //not required if already enabled for the db. 
 
 #  client
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
