@@ -1,6 +1,6 @@
 #  dependencies
-$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net6.0\Kusto.Data.dll')
-$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net6.0\Kusto.Ingest.dll')
+$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Data.dll')
+$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Ingest.dll')
 
 $uri = "https://kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
 $db = "MyDatabase"
