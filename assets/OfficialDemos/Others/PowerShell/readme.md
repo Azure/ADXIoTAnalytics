@@ -13,24 +13,26 @@ ref:
 - https://www.powershellgallery.com/packages/PowerShell.Azure.Data.Explorer/0.0.4/Content/functions%5CImport-CsvToADX.ps1
 
 ##  Pre-reqs:
-
+1. Install PowerShell 7: 
+```
+winget install --id Microsoft.Powershell --source winget
+```
+2. Install Kusto Tools:
 ```
 Invoke-WebRequest -Uri https://nuget.org/api/v2/package/Microsoft.Azure.Kusto.Tools -OutFile Microsoft.Azure.Kusto.Tools.zip
 Expand-Archive .\Microsoft.Azure.Kusto.Tools.zip -Destination "C:\kustotools\" -Force
 Remove-Item .\Microsoft.Azure.Kusto.Tools.zip -force
 ```
 
-If you get unable to load Azure.Core then try these steps.
+## Troubleshooting:
+1. If you get unable to load Azure.Core then try these steps.
 ```
 Invoke-WebRequest -Uri https://www.nuget.org/api/v2/package/Azure.Core/1.38.0 -OutFile Azure.Core.zip
 Expand-Archive .\Azure.Core.zip -Destination "C:\kustotools\azurecore\" -Force
 Remove-Item .\Azure.Core.zip -force
 ```
 
-Install PowerShell 7: 
-```
-winget install --id Microsoft.Powershell --source winget
-```
+
 
 Next step:
 1. create another version of 4.Kusto-BasicIngest-JSON.ps1 to collect for 30s and post once, reusing client continuously. :white_check_mark:
