@@ -5,7 +5,7 @@ Basic examples to read/write (ingest) using PowerShell. This is not meant to be 
 Examples include: 
 - ingesting an **array from memory** 
 - ingesting a **local csv file** 
-- and **streaming** - COMMING SOON.
+- and **streaming**
 
 ref: 
 - https://learn.microsoft.com/en-us/azure/data-explorer/kusto/api/netfx/kusto-ingest-client-reference
