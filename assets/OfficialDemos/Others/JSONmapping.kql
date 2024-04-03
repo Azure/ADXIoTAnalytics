@@ -1,3 +1,8 @@
+// Are you missing data? 
+// Are your JSON messages varying in structures? 
+// We have a solution for you.
+
+
 // landing raw
 .create table rawTable (full_record:dynamic)
 
