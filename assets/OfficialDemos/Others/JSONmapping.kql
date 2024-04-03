@@ -1,0 +1,66 @@
+// landing raw
+.create table rawTable (full_record:dynamic)
+
+
+// mapping for varying unknown json structures
+.create table rawTable ingestion json mapping 'rawTable_mapping' 
+```
+[
+    {"Column": "full_record", "Properties": {"Path": "$"}}
+]
+```
+
+// query the table...is empty thus far
+rawTable
+
+
+// lets load a json blob
+.ingest into table rawTable ('https://kustosamplefiles.blob.core.windows.net/jsonsamplefiles/multilined.json') with (format = "multijson", ingestionMappingReference = "rawTable_mapping")
+
+// lets load a different json blob to the same table
+.ingest into table rawTable ('https://iotmonitoringsa26915.blob.core.windows.net/jsonsamplefiles/multilined.json') with (format = "multijson", ingestionMappingReference = "rawTable_mapping")
+
+// success no missing records
+rawTable
+
+// lets monitor for failed ingestion
+.show ingestion failures | sort by FailedOn desc | project-reorder Details, *
+
+
+// next, well what about semi-structured? 
+// no problem we alter the table by adding columns
+.alter table rawTable (id:int, content:string, full_record:dynamic)
+
+// lets create another mapping for both semi-structure and unstructured (aka. multi-plexing)
+.create table rawTable ingestion json mapping 'rawTable_mapping2' 
+```
+[
+    {"Column": "id", "Properties": {"Path": "$.id"}},
+    {"Column": "content", "Properties": {"Path": "$.content"}},
+    {"Column": "full_record", "Properties": {"Path": "$"}}
+]
+```
+
+// lets re-ingest some data referecing the new mapping
+.ingest into table rawTable ('https://iotmonitoringsa26915.blob.core.windows.net/jsonsamplefiles/multilined.json') with (format = "multijson", ingestionMappingReference = "rawTable_mapping2")
+
+// voila
+rawTable
+
+
+// this is a print example -- pls disregard!
+let message1 ='{ "id": 1,  "content": "Hello, world!",  "timestamp": "2024-04-03T16:05:00Z" }';
+let message2 ='{ "message_id": 2,  "text": "This is a test message.",  "created_at": "2024-04-03T16:10:00Z",  "author": "John Doe" }';
+let message3 ='{ "msg_id": 3,  "message": "Thanks for using this service!",  "time": "2024-04-03T16:15:00Z",  "category": "Feedback" }';
+let message4 ='{ "deviceId": "axd1y45",  "value": 42,  "time": "2024-04-03T16:25:00Z",  "tag": "temperature" }';
+print full_record=message1
+| union (print full_record=message2), (print full_record=message3), (print full_record=message4)
+| project todynamic(full_record)
+
+
+// ref:
+// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/json-mapping#examples
+// https://learn.microsoft.com/en-us/azure/data-explorer/ingest-json-formats?tabs=kusto-query-language
+// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/create-function
+// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/update-policy
+// https://aka.ms/adx.architectures 
