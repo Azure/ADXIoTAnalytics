@@ -1,0 +1,30 @@
+﻿let Alarm = datatable(col1:string)[
+'abc',
+'',
+'foo'
+];
+Alarm
+| where col1 <>'' or isnotempty(col1) == true
+
+
+.set-or-append Alarm <| datatable(col1:string)[
+'abc',
+'',
+'foo',
+]
+
+.alter table Alarm (col1:string, full_output:dynamic)
+
+
+Alarm
+| where col1 <>'' or isnotempty(col1) == true
+| project col1
+
+.create-or-alter function Alarm() {
+    Alarm 
+    | where col1 <>'' or isnotempty(col1) == true
+    | project col1
+}
+
+Alarm
+
