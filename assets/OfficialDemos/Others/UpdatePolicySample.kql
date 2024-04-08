@@ -1,0 +1,102 @@
+﻿// https://learn.microsoft.com/en-us/azure/data-explorer/kusto/management/update-policy-tutorial
+
+.alter table Raw_Table (RawData: dynamic) with (folder='Demo')
+
+.execute database script <|
+  .create-or-alter function  with (folder='Demo') Get_Telemetry() {
+    Raw_Table
+    | where todynamic(RawData).MessageType == 'Telemetry'
+    | extend
+      Timestamp = unixtime_seconds_todatetime(tolong(RawData.Timestamp)),
+      DeviceId = tostring(RawData.DeviceId),
+      DeviceType = tostring(RawData.DeviceType),
+      SensorName = tostring(RawData.SensorName),
+      SensorValue = toreal(RawData.SensorValue),
+      SensorUnit = tostring(RawData.SensorUnit)
+    | project-away RawData
+  }
+  .create-or-alter function  with (folder='Demo') Get_Alarms() {
+    Raw_Table
+    | where RawData.MessageType == 'Alarms'
+    | extend
+      Timestamp = unixtime_seconds_todatetime(tolong(RawData.Timestamp)),
+      DeviceId = tostring(RawData.DeviceId),
+      DeviceType = tostring(RawData.DeviceTpe) ,
+      AlarmType = tostring(RawData.AlarmType)
+    | project-away RawData
+  }
+  .create-or-alter function  with (folder='Demo') Log_Error() {
+    Raw_Table
+    | where RawData.MessageType !in ('Telemetry', 'Alarms')
+    | extend
+      TimeStamp = datetime(now),
+      ErrorType = 'Unknown MessageType'
+    | project TimeStamp, RawData, ErrorType
+  }
+
+
+//create derived tables
+
+// .execute database script <|
+  
+.create table Device_Telemetry (
+  Timestamp: datetime,
+  DeviceId: string,
+  DeviceType: string,
+  SensorName: string,
+  SensorValue: real,
+  SensorUnit: string)
+ with (folder='Demo')
+
+.set-or-append Device_Alarms with (folder='Demo') <| 
+Get_Alarms 
+| limit 0
+
+shift+Enter = keyboard shortcut to run command.
+
+web ui = kusto web explorer - https://aka.ms/adx.try
+desktop tool = kusto explorer https://aka.ms/ke
+
+
+.set-or-append Error_Log with (folder='Demo') <| Log_Error | take 0
+
+
+//enable update policies
+.execute database script <|
+  .alter table Device_Telemetry policy update "[{\"IsEnabled\":true,\"Source\":\"Raw_Table\",\"Query\":\"Get_Telemetry\"}]"
+  .alter table Device_Alarms policy update "[{\"IsEnabled\":true,\"Source\":\"Raw_Table\",\"Query\":\"Get_Alarms\"}]"
+  .alter table Error_Log policy update "[{\"IsEnabled\":true,\"Source\":\"Raw_Table\",\"Query\":\"Log_Error\"}]"
+
+
+.show table Error_Log policy update 
+
+
+//populate some JSON data with different structures.
+
+.set-or-append Raw_Table <| let myvar= datatable(RawData: dynamic)[
+    dynamic({"TimeStamp": 1691757932, "DeviceId": "Sensor01", "MessageType": "Telemetry", "DeviceType": "Laminator", "SensorName": "Temperature", "SensorValue": 78.3, "SensorUnit": "Celcius"}),
+    dynamic({"TimeStamp": 1691757932, "DeviceId": "Sensor01", "MessageType": "Alarms", "DeviceType": "Laminator", "AlarmType": "Temperature threshold breached"}),
+    dynamic({"TimeStamp": 1691757932, "DeviceId": "Sensor01", "MessageType": "Foo", "ErrorType": "Unknown"})
+];
+myvar
+
+
+Raw_Table
+| take 10
+
+
+Error_Log
+| take 10 
+
+Device_Alarms
+| take 10
+
+Device_Telemetry
+| take 10
+
+
+Raw_Table | summarize Rows=count() by TableName = "Raw_Table"
+| union (Device_Telemetry | summarize Rows=count() by TableName = "Device_Telemetry")
+| union (Device_Alarms | summarize Rows=count() by TableName = "Device_Alarms")
+| union (Error_Log | summarize Rows=count() by TableName = "Error_Log")
+| sort by Rows desc
