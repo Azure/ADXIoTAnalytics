@@ -30,7 +30,21 @@ Open [Azure Cloud Shell](https://shell.azure.com/) and run the following command
     ```
     ![SampleCLIOutput](assets/SampleCLIOutput.png "SampleCLIOutput")
 
-5. After deploy script completes:
+   ⚠️ You may see the following Error ⚠️
+
+   `Failed to connect to MSI. Please make sure MSI is configured correctly. Get Token request returned: <Response [400]>`
+
+   This error occurs because the IoT Central App doesn't yet exist. It now takes ~10 minutes to create, and our deployment script is not set to wait. To fix the error please follow these steps:
+   - Open the new resource group **ADXIoTAnalytics...** that was created in your subscription > **open eventhubpm...** > scroll down and click **iotdata** > click **Shared access policies** > click **ListenSend** > click the paper stack to copy the **Connection string-primary key**.
+   - Go back to the resource group > click **iotcentralpm...**, click the **IoT Central Application URL**
+   - Wait & refresh the page for your app to appear under My Apps. Note, login to IoT Central with the same account of your subscription.
+   - Open your IoT App, should be called Store Analytics, expand the menu on the left by clicking the hamburger icon > click **Data Export** > click **Destinations** > add a new destination, name it **iotdata**, type **Azure Event Hubs** > paste the **Connection String** > click **Save**.
+   - Click **Data Export** again > add an export > name it Export, type: **Telemetry**, for Destionation choose **iotdata**, click **Save**.
+   - Refresh the page till it appears **Healthy**, should take approximately 5 minutes.
+   - Proceed with the rest of the lab.
+   
+
+6. After deploy script completes:
     - Go to **Home** > **[Azure Data Explorer Clusters](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Kusto%2Fclusters)** > click on the newly deployed **ADX cluster** > copy the **URI** and open it in a new tab. 
     
       ![uri](assets/uri.png "uri")
