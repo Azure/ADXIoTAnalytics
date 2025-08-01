@@ -1,0 +1,74 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Very useful when having to change datatypes or make schemas changes that require recreating tables. //
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////
+// OPTION 1  - easy & fast  //
+//////////////////////////////
+// FUNCTION METHOD //
+/////////////////////
+
+.create table MyTable (ColumnX:string, ColumnY:int, ColumnA:string)
+
+.append MyTable <| datatable (ColumnX:string, ColumnY:int, ColumnA:string)[
+    'helloworld',1,'helloworld'
+    ]
+
+//notice intellicence color for a table.
+MyTable
+| getschema 
+
+//but I need dynamic...
+.create function MyTable () {
+    table('MyTable')
+    | project ColumnX=todynamic(ColumnX), ColumnY, ColumnA
+}
+
+
+table('MyTable')
+| getschema 
+
+//notice intellicence color for a function differs than for a table, the query parser defaults to a function when entity names are the same and still delivers the same perf.
+MyTable
+| getschema 
+
+MyTable
+
+//cleanup
+.execute database script <| 
+.drop table MyTable ifexists
+.drop function MyTable ifexists
+
+
+
+//////////////////////////////
+// OPTION 2  - the long way //
+//////////////////////////////
+// CHANGE DATA TYPE //
+//////////////////////
+
+.create table MyTable (ColumnX:string, ColumnY:int, ColumnA:string)
+
+.append MyTable <| datatable (ColumnX:string, ColumnY:int, ColumnA:string)[
+    'helloworld',1,'helloworld'
+    ]
+
+//but I need dynamic...
+.create table MyTable2 (ColumnX:string, ColumnY:int, ColumnA:dynamic) 
+
+//automated script
+.execute database script <|
+//moves historical data
+.set-or-append MyTable2 <| MyTable | project ColumnX,ColumnY,ColumnA=todynamic(ColumnA);
+//renames
+.rename table MyTable to MyTable_deleteme;
+.rename table MyTable2 to MyTable;
+
+// https://github.com/hfleitas/mvt/blob/main/kqlquerysets/skybitz/scriptedappend.kql (advanced using creationTime)
+
+MyTable
+| take 10
+
+//cleanup
+.drop table MyTable ifexists
