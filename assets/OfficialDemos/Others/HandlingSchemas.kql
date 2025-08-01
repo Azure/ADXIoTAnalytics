@@ -15,7 +15,7 @@
     'helloworld',1,'helloworld'
     ]
 
-//notice intellicence color for a table.
+//notice IntelliSense color for a table.
 MyTable
 | getschema 
 
