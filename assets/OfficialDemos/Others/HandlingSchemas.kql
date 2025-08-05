@@ -1,0 +1,83 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Very useful when having to change datatypes or make schemas changes that require recreating tables. //
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////
+// OPTION 1  - easy & fast  //
+//////////////////////////////
+// FUNCTION METHOD //
+/////////////////////
+
+.create table MyTable111 (ColumnX:string, ColumnY:int, ColumnA:string)
+
+.append MyTable111 <| datatable (ColumnX:string, ColumnY:int, ColumnA:string)[
+    'helloworld',1,'helloworld'
+    ]
+
+//notice IntelliSense color for a table.
+MyTable111
+| getschema 
+
+MyTable111
+
+
+//but I need dynamic...
+.create function MyTable111 () {
+    table('MyTable111')
+    | project ColumnX=todynamic(ColumnX), ColumnY, ColumnA
+}
+
+MyTable111
+
+
+table('MyTable111')
+| getschema 
+
+//notice intellicence color for a function differs than for a table, the query parser defaults to a function when entity names are the same and still delivers the same perf.
+MyTable111
+
+
+table('MyTable111')
+
+//cleanup
+.execute database script <| 
+.drop table MyTable111 ifexists
+.drop function MyTable111 ifexists
+
+
+
+//////////////////////////////
+// OPTION 2  - the long way //
+//////////////////////////////
+// CHANGE DATA TYPE //
+//////////////////////
+
+.create table MyTable111 (ColumnX:string, ColumnY:int, ColumnA:string)
+
+.append MyTable111 <| datatable (ColumnX:string, ColumnY:int, ColumnA:string)[
+    'helloworld',1,'helloworld'
+    ]
+
+MyTable111 
+
+//but I need dynamic...
+.create table MyTable222 (ColumnX:string, ColumnY:int, ColumnA:dynamic) 
+
+//automated script
+.execute database script <|
+//moves historical data
+.set-or-append MyTable222 <| MyTable111 | project ColumnX,ColumnY,ColumnA=todynamic(ColumnA);
+//renames
+.rename table MyTable111 to MyTable111_deleteme;
+.rename table MyTable222 to MyTable111;
+
+// https://github.com/hfleitas/mvt/blob/main/kqlquerysets/skybitz/scriptedappend.kql (advanced using creationTime)
+
+MyTable111
+| take 10
+
+//cleanup
+.execute database script <|
+.drop table MyTable111 ifexists
+.drop table MyTable111_deleteme ifexists
