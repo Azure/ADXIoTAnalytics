@@ -6,6 +6,7 @@ try { $null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472
 $verbose = 0  # set to 1 to echo status per ingestion
 
 $uri = "https://trd-cff114afmpqwdjz7ux.z0.kusto.fabric.microsoft.com;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
+# $uri = "https://trd-3yh68y911w8pmue9mg.z6.kusto.fabric.microsoft.com;Fed=True" #bcdr2
 $db = "EH1"
 $t = "Counter_raw"
 
