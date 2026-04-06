@@ -1,10 +1,12 @@
 #  dependencies
-$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Data.dll')
-$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Ingest.dll')
-$null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Azure.Core.dll')
+try { $null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Data.dll') } catch {}
+try { $null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Kusto.Ingest.dll') } catch {}
+try { $null = [System.Reflection.Assembly]::LoadFrom('C:\kustotools\tools\net472\Azure.Core.dll') } catch {}
 
-$uri = "https://kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
-$db = "MyDatabase"
+$verbose = 0  # set to 1 to echo status per ingestion
+
+$uri = "https://trd-cff114afmpqwdjz7ux.z0.kusto.fabric.microsoft.com;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
+$db = "EH1"
 $t = "Counter_raw"
 
 # https://aka.ms/adx.free 
@@ -15,28 +17,87 @@ $t = "Counter_raw"
 # .show database policy streamingingestion //if IsEnabled = true, table will inherit database policy.
 # .alter table Counter_raw policy streamingingestion enable //not required if already enabled for the db. 
 
+# device identity (stable across sessions)
+$deviceId = @{
+  ComputerName = $env:COMPUTERNAME
+  MachineGuid  = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Cryptography').MachineGuid
+}
+
 #  client
 $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
 $c = [Kusto.Ingest.KustoIngestFactory]::CreateStreamingIngestClient($s)
 $p = [Kusto.Ingest.KustoIngestionProperties]::new($db, $t)
 $p.Format = [Kusto.Data.Common.DataSourceFormat]::multijson
 
-while (1 -eq 1) {
-  Write-Output "This is an infinite loop. Press Ctrl+C to stop."
-  
-  # $p.IgnoreFirstRecord = $true
-  $ms = [System.IO.MemoryStream]::new()
-  $sw = [System.IO.StreamWriter]::new($ms)
-  $text = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | % { @{Data = $_} } | ConvertTo-Json
-  # echo $text
-  $ms.Position = 0
-  $sw.Write($text)
-  $sw.Flush()
-  $ms.Position = 0
-  # echo $ms
-  $r = $c.IngestFromStreamAsync($ms,$p)
-  $r
-  #$r.Result.GetIngestionStatusCollection()
+# Counter samples loop (runs in background thread - shares loaded assemblies)
+$counterJob = Start-ThreadJob -ScriptBlock {
+  param($uri, $db, $t, $verbose, $deviceId)
+  $s = [Kusto.Data.KustoConnectionStringBuilder]::new($uri, $db)
+  $c = [Kusto.Ingest.KustoIngestFactory]::CreateStreamingIngestClient($s)
+  $p = [Kusto.Ingest.KustoIngestionProperties]::new($db, $t)
+  $p.Format = [Kusto.Data.Common.DataSourceFormat]::multijson
 
-  Start-Sleep -Seconds 1
+  while ($true) {
+    $ms = [System.IO.MemoryStream]::new()
+    $sw = [System.IO.StreamWriter]::new($ms)
+    $text = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | % { @{Data = $_; Device = $deviceId} } | ConvertTo-Json
+    $sw.Write($text)
+    $sw.Flush()
+    $ms.Position = 0
+    try {
+      $r = $c.IngestFromStreamAsync($ms, $p).GetAwaiter().GetResult()
+      if ($verbose) {
+        $ing = $r.GetIngestionStatusCollection() | Select-Object -First 1
+        Write-Output "[Counter $(Get-Date -Format 'HH:mm:ss.fff')] Status: $($ing.Status) | IngestionTime: $($ing.Timestamp)"
+      }
+    } catch {
+      throw "[Counter] Fatal error: $($_.Exception.Message)"
+    } finally {
+      $sw.Dispose()
+      $ms.Dispose()
+    }
+  }
+} -ArgumentList $uri, $db, $t, $verbose, $deviceId
+
+Write-Host "Running... (verbose=$verbose) Press Ctrl+C to stop."
+
+# CIM data loop (runs in foreground)
+try {
+  while ($true) {
+    # Check counter job for errors
+    if ($counterJob.State -eq 'Failed') {
+      Receive-Job -Job $counterJob -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+      throw "Counter job failed. Aborting."
+    }
+    if ($verbose) {
+      Receive-Job -Job $counterJob -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+    }
+
+    $ms = [System.IO.MemoryStream]::new()
+    $sw = [System.IO.StreamWriter]::new($ms)
+    $cimData = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Select-Object * | % { @{Data = $_; Device = $deviceId} }
+    $text = $cimData | ConvertTo-Json -Depth 30
+    $sw.Write($text)
+    $sw.Flush()
+    $ms.Position = 0
+    try {
+      $r = $c.IngestFromStreamAsync($ms, $p).GetAwaiter().GetResult()
+      if ($verbose) {
+        $ing = $r.GetIngestionStatusCollection() | Select-Object -First 1
+        Write-Host "[CIM     $(Get-Date -Format 'HH:mm:ss.fff')] Status: $($ing.Status) | IngestionTime: $($ing.Timestamp)"
+      }
+    } catch {
+      throw "[CIM] Fatal error: $_"
+    } finally {
+      $sw.Dispose()
+      $ms.Dispose()
+    }
+
+    Start-Sleep -Milliseconds 10
+  }
+} finally {
+  Write-Host "Stopping counter job..."
+  Stop-Job -Job $counterJob -ErrorAction SilentlyContinue
+  Remove-Job -Job $counterJob -Force -ErrorAction SilentlyContinue
+  Write-Host "Stopped."
 }

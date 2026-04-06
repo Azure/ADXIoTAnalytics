@@ -1,10 +1,10 @@
 #  dependencies
-$pkgroot = "C:\Microsoft.Azure.Kusto.Tools\tools\net6.0"
+$pkgroot = "C:\Microsoft.Azure.Kusto.Tools\Microsoft.Azure.Kusto.Tools\tools\net6.0"
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Data.dll")
 $null = [System.Reflection.Assembly]::LoadFrom("$pkgroot\Kusto.Ingest.dll")
 
-$uri = "https://kvc43f0ee6600e24ef2b0e.southcentralus.kusto.windows.net;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
-$db = "MyDatabase"
+$uri = "https://trd-cff114afmpqwdjz7ux.z0.kusto.fabric.microsoft.com;Fed=True" #cluster URI, because we can stream directly to the engine nodes.
+$db = "EH1"
 $t = "Counter_raw"
 
 # https://aka.ms/adx.free 
@@ -24,12 +24,10 @@ $p.Format = [Kusto.Data.Common.DataSourceFormat]::multijson
 $ms = [System.IO.MemoryStream]::new()
 $sw = [System.IO.StreamWriter]::new($ms)
 $text = (Get-Counter).CounterSamples | Select-Object Timestamp, Path, InstanceName, CookedValue | % { @{Data = $_} } | ConvertTo-Json
-# echo $text
-$ms.Position = 0
 $sw.Write($text)
 $sw.Flush()
 $ms.Position = 0
-# echo $ms
-$r = $c.IngestFromStreamAsync($ms,$p)
-$r
-$r.Result.GetIngestionStatusCollection()
+$r = $c.IngestFromStreamAsync($ms, $p).GetAwaiter().GetResult()
+$r.GetIngestionStatusCollection()
+$sw.Dispose()
+$ms.Dispose()
